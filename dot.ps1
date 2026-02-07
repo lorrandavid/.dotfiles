@@ -19,7 +19,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("link", "unlink", "status", "doctor", "edit", "help")]
+    [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "help")]
     [string]$Command = "help"
 )
 
@@ -276,6 +276,47 @@ function Invoke-Edit {
     }
 }
 
+function Invoke-Install {
+    Write-Header "Installing required tools via winget"
+
+    # Check if winget is available
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        Write-Error "winget is not installed. Please install App Installer from the Microsoft Store."
+        return
+    }
+
+    $tools = @(
+        @{ Name = "wezterm"; WingetId = "wez.wezterm" },
+        @{ Name = "nvim"; WingetId = "Neovim.Neovim" }
+    )
+
+    foreach ($tool in $tools) {
+        Write-Info "Checking: $($tool.Name)"
+
+        if (Get-Command $tool.Name -ErrorAction SilentlyContinue) {
+            Write-Success "$($tool.Name) is already installed"
+        }
+        else {
+            Write-Info "Installing $($tool.Name) via winget..."
+            try {
+                winget install --id $tool.WingetId --accept-source-agreements --accept-package-agreements --silent
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "$($tool.Name) installed successfully"
+                }
+                else {
+                    Write-Error "Failed to install $($tool.Name)"
+                }
+            }
+            catch {
+                Write-Error "Failed to install $($tool.Name): $_"
+            }
+        }
+    }
+
+    Write-Header "Installation complete!"
+    Write-Info "You may need to restart your terminal for PATH changes to take effect."
+}
+
 function Show-Help {
     Write-Host @"
 
@@ -291,12 +332,14 @@ function Show-Help {
     status    Show current link status for all configs
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
+    install   Install required tools (wezterm, nvim) via winget
     help      Show this help message
 
   EXAMPLES:
     .\dot.ps1 link       # Link all configs
     .\dot.ps1 status     # Check what's linked
     .\dot.ps1 doctor     # Run health checks
+    .\dot.ps1 install    # Install wezterm and nvim
 
   NOTE:
     The 'link' command requires Administrator privileges.
@@ -306,11 +349,12 @@ function Show-Help {
 
 # Main execution
 switch ($Command) {
-    "link"   { Invoke-Link }
-    "unlink" { Invoke-Unlink }
-    "status" { Invoke-Status }
-    "doctor" { Invoke-Doctor }
-    "edit"   { Invoke-Edit }
-    "help"   { Show-Help }
-    default  { Show-Help }
+    "link"    { Invoke-Link }
+    "unlink"  { Invoke-Unlink }
+    "status"  { Invoke-Status }
+    "doctor"  { Invoke-Doctor }
+    "edit"    { Invoke-Edit }
+    "install" { Invoke-Install }
+    "help"    { Show-Help }
+    default   { Show-Help }
 }
