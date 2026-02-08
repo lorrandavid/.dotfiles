@@ -11,6 +11,16 @@ Set-PSReadLineOption -PredictionSource History
 Set-PSReadLineOption -PredictionViewStyle ListView
 Set-PSReadlineKeyHandler -Key Tab -Function MenuComplete
 
+# Improve prediction/completion contrast for light terminal themes
+try {
+    Set-PSReadLineOption -Colors @{
+        InlinePrediction       = [ConsoleColor]::DarkGray
+        ListPrediction         = [ConsoleColor]::DarkGray
+        ListPredictionSelected = [ConsoleColor]::Black
+    }
+} catch {
+}
+
 # Fzf
 Import-Module PSFzf
 Set-PSFzfOption -PSReadlineChordProvider 'Ctrl+f' -PSReadlineChordReverseHistory 'Ctrl+r'
