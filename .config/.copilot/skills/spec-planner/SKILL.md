@@ -21,14 +21,6 @@ CLARIFY ──[user responds]──► DISCOVER ──[done]──► DRAFT ─�
    └──[still ambiguous]──◄──────┴───────────────────┴────[gaps found]──────┘
 ```
 
-**State phase at end of every response:**
-```
----
-Phase: CLARIFY | Waiting for: answers to questions 1-4
-```
-
----
-
 ## Phase 1: CLARIFY (Mandatory)
 
 **Hard rule:** No spec until user has responded to at least one round of questions.
