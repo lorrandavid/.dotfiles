@@ -20,7 +20,7 @@ set -euo pipefail
 VERSION="1.0.0"
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_SOURCE="$DOTFILES_DIR/.config"
-CONFIG_TARGET="$HOME/.config"
+CONFIG_TARGET="${XDG_CONFIG_HOME:-$HOME/.config}"
 BACKUP_DIR="$DOTFILES_DIR/backups"
 
 # Colors
@@ -41,7 +41,22 @@ get_config_items() {
     if [[ ! -d "$CONFIG_SOURCE" ]]; then
         return
     fi
-    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' -printf '%f\n' | sort
+}
+
+ensure_xdg_config_home() {
+    local profile_file="$HOME/.profile"
+    local export_line='export XDG_CONFIG_HOME="$HOME/.config"'
+
+    if [[ -f "$profile_file" ]] && grep -Fqx "$export_line" "$profile_file"; then
+        write_success "XDG_CONFIG_HOME already configured in $profile_file"
+    else
+        printf '\n%s\n' "$export_line" >> "$profile_file"
+        write_success "Configured XDG_CONFIG_HOME in $profile_file"
+    fi
+
+    export XDG_CONFIG_HOME="$HOME/.config"
+    CONFIG_TARGET="$XDG_CONFIG_HOME"
 }
 
 is_symlink() {
@@ -50,6 +65,7 @@ is_symlink() {
 
 do_link() {
     write_header "Creating symlinks for dotfiles"
+    ensure_xdg_config_home
 
     mapfile -t configs < <(get_config_items)
     if [[ ${#configs[@]} -eq 0 ]]; then
@@ -63,6 +79,12 @@ do_link() {
     local timestamp
     timestamp=$(date +"%Y%m%d_%H%M%S")
     local backup_path="$BACKUP_DIR/$timestamp"
+    local powershell_target="$CONFIG_TARGET/powershell"
+
+    if [[ -L "$powershell_target" ]]; then
+        rm -f "$powershell_target"
+        write_info "Removed PowerShell symlink for Linux environment"
+    fi
 
     for config in "${configs[@]}"; do
         local source="$CONFIG_SOURCE/$config"
