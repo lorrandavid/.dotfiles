@@ -27,7 +27,7 @@ param(
 $script:Version = "1.0.0"
 $script:DotfilesDir = $PSScriptRoot
 $script:ConfigSource = Join-Path $DotfilesDir ".config"
-$script:ConfigTarget = Join-Path $env:USERPROFILE ".config"
+$script:ConfigTarget = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { Join-Path $env:USERPROFILE ".config" }
 $script:BackupDir = Join-Path $DotfilesDir "backups"
 
 # Colors for output
@@ -36,6 +36,20 @@ function Write-Success { param($Message) Write-Host "[OK] $Message" -ForegroundC
 function Write-Error { param($Message) Write-Host "[X] $Message" -ForegroundColor Red }
 function Write-Warning { param($Message) Write-Host "[!] $Message" -ForegroundColor Yellow }
 function Write-Info { param($Message) Write-Host "[i] $Message" -ForegroundColor Cyan }
+
+function Ensure-XdgConfigHome {
+    $xdgConfigHome = Join-Path $env:USERPROFILE ".config"
+    if ($env:XDG_CONFIG_HOME -eq $xdgConfigHome) {
+        $script:ConfigTarget = $env:XDG_CONFIG_HOME
+        Write-Success "XDG_CONFIG_HOME already set: $xdgConfigHome"
+        return
+    }
+
+    [System.Environment]::SetEnvironmentVariable("XDG_CONFIG_HOME", $xdgConfigHome, "User")
+    $env:XDG_CONFIG_HOME = $xdgConfigHome
+    $script:ConfigTarget = $xdgConfigHome
+    Write-Success "Configured XDG_CONFIG_HOME: $xdgConfigHome"
+}
 
 function Get-ConfigItems {
     if (-not (Test-Path $script:ConfigSource)) {
@@ -59,6 +73,8 @@ function Test-IsAdmin {
 
 function Invoke-Link {
     Write-Header "Creating symlinks for dotfiles"
+
+    Ensure-XdgConfigHome
 
     if (-not (Test-IsAdmin)) {
         Write-Info "Requesting Administrator privileges..."

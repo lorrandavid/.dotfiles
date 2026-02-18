@@ -45,8 +45,15 @@ get_config_items() {
 }
 
 ensure_xdg_config_home() {
+    local desired_config_home="$HOME/.config"
     local profile_file="$HOME/.profile"
     local export_line='export XDG_CONFIG_HOME="$HOME/.config"'
+
+    if [[ "${XDG_CONFIG_HOME:-}" == "$desired_config_home" ]]; then
+        CONFIG_TARGET="$XDG_CONFIG_HOME"
+        write_success "XDG_CONFIG_HOME already set: $XDG_CONFIG_HOME"
+        return
+    fi
 
     if [[ -f "$profile_file" ]] && grep -Fqx "$export_line" "$profile_file"; then
         write_success "XDG_CONFIG_HOME already configured in $profile_file"
@@ -55,7 +62,7 @@ ensure_xdg_config_home() {
         write_success "Configured XDG_CONFIG_HOME in $profile_file"
     fi
 
-    export XDG_CONFIG_HOME="$HOME/.config"
+    export XDG_CONFIG_HOME="$desired_config_home"
     CONFIG_TARGET="$XDG_CONFIG_HOME"
 }
 
