@@ -238,7 +238,7 @@ do_doctor() {
     fi
 
     # Check common tools
-    for tool in git nvim code; do
+    for tool in git nvim code opencode; do
         if command -v "$tool" &>/dev/null; then
             write_success "$tool is installed"
         else

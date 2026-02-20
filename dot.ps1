@@ -256,7 +256,7 @@ function Invoke-Doctor {
     }
 
     # Check common tools
-    $tools = @("git", "nvim", "code")
+    $tools = @("git", "nvim", "code", "opencode")
     foreach ($tool in $tools) {
         if (Get-Command $tool -ErrorAction SilentlyContinue) {
             Write-Success "$tool is installed"
