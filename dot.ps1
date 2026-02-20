@@ -19,7 +19,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "help")]
+    [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "setup", "help")]
     [string]$Command = "help"
 )
 
@@ -256,7 +256,7 @@ function Invoke-Doctor {
     }
 
     # Check common tools
-    $tools = @("git", "nvim", "code", "opencode")
+    $tools = @("git", "nvim", "code", "opencode", "copilot")
     foreach ($tool in $tools) {
         if (Get-Command $tool -ErrorAction SilentlyContinue) {
             Write-Success "$tool is installed"
@@ -329,8 +329,57 @@ function Invoke-Install {
         }
     }
 
+    # Install opencode via official PowerShell installer if not present
+    Write-Info "Checking: opencode"
+    if (Get-Command opencode -ErrorAction SilentlyContinue) {
+        Write-Success "opencode is already installed"
+    }
+    else {
+        Write-Info "Installing opencode..."
+        try {
+            Invoke-RestMethod https://opencode.ai/install | Invoke-Expression
+            if (Get-Command opencode -ErrorAction SilentlyContinue) {
+                Write-Success "opencode installed successfully"
+            }
+            else {
+                Write-Warning "opencode installed but not yet on PATH (restart terminal)"
+            }
+        }
+        catch {
+            Write-Error "Failed to install opencode: $_"
+        }
+    }
+
+    # Install GitHub Copilot CLI via winget if not present
+    Write-Info "Checking: copilot (GitHub Copilot CLI)"
+    if (Get-Command copilot -ErrorAction SilentlyContinue) {
+        Write-Success "copilot is already installed"
+    }
+    else {
+        Write-Info "Installing GitHub Copilot CLI via winget..."
+        try {
+            winget install --id GitHub.Copilot --accept-source-agreements --accept-package-agreements --silent
+            if ($LASTEXITCODE -eq 0) {
+                Write-Success "copilot installed successfully"
+            }
+            else {
+                Write-Error "Failed to install GitHub Copilot CLI"
+            }
+        }
+        catch {
+            Write-Error "Failed to install GitHub Copilot CLI: $_"
+        }
+    }
+
     Write-Header "Installation complete!"
     Write-Info "You may need to restart your terminal for PATH changes to take effect."
+}
+
+function Invoke-Setup {
+    Write-Header "Running full setup (install + link)"
+    Invoke-Install
+    Invoke-Link
+    Write-Header "Setup complete!"
 }
 
 function Show-Help {
@@ -348,14 +397,16 @@ function Show-Help {
     status    Show current link status for all configs
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
-    install   Install required tools (wezterm, nvim) via winget
+    setup     Install required tools and create symlinks
+    install   Install required tools (wezterm, nvim, opencode, copilot) via winget/npm
     help      Show this help message
 
   EXAMPLES:
     .\dot.ps1 link       # Link all configs
     .\dot.ps1 status     # Check what's linked
     .\dot.ps1 doctor     # Run health checks
-    .\dot.ps1 install    # Install wezterm and nvim
+    .\dot.ps1 setup      # Install tools and link configs
+    .\dot.ps1 install    # Install wezterm, nvim, opencode, and copilot
 
   NOTE:
     The 'link' command requires Administrator privileges.
@@ -371,6 +422,7 @@ switch ($Command) {
     "doctor"  { Invoke-Doctor }
     "edit"    { Invoke-Edit }
     "install" { Invoke-Install }
+    "setup"   { Invoke-Setup }
     "help"    { Show-Help }
     default   { Show-Help }
 }

@@ -238,7 +238,7 @@ do_doctor() {
     fi
 
     # Check common tools
-    for tool in git nvim code opencode; do
+    for tool in git nvim code opencode copilot; do
         if command -v "$tool" &>/dev/null; then
             write_success "$tool is installed"
         else
@@ -350,8 +350,49 @@ do_install() {
         fi
     done
 
+    # Install opencode via official installer if not present
+    write_info "Checking: opencode"
+    if command -v opencode &>/dev/null; then
+        write_success "opencode is already installed"
+    else
+        write_info "Installing opencode..."
+        if curl -fsSL https://opencode.ai/install | bash; then
+            if command -v opencode &>/dev/null; then
+                write_success "opencode installed successfully"
+            else
+                write_warning "opencode installed but not yet on PATH (restart terminal)"
+            fi
+        else
+            write_error "Failed to install opencode"
+        fi
+    fi
+
+    # Install GitHub Copilot CLI via official installer if not present
+    write_info "Checking: copilot (GitHub Copilot CLI)"
+    if command -v copilot &>/dev/null; then
+        write_success "copilot is already installed"
+    else
+        write_info "Installing GitHub Copilot CLI..."
+        if curl -fsSL https://gh.io/copilot-install | bash; then
+            if command -v copilot &>/dev/null; then
+                write_success "copilot installed successfully"
+            else
+                write_warning "copilot installed but not yet on PATH (restart terminal)"
+            fi
+        else
+            write_error "Failed to install GitHub Copilot CLI"
+        fi
+    fi
+
     write_header "Installation complete!"
     write_info "You may need to restart your terminal for PATH changes to take effect."
+}
+
+do_setup() {
+    write_header "Running full setup (install + link)"
+    do_install
+    do_link
+    write_header "Setup complete!"
 }
 
 show_help() {
@@ -369,14 +410,16 @@ show_help() {
     status    Show current link status for all configs
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
-    install   Install required tools (wezterm, nvim) via package manager
+    setup     Install required tools and create symlinks
+    install   Install required tools (wezterm, nvim, opencode, copilot) via package manager
     help      Show this help message
 
   EXAMPLES:
     ./dot.sh link       # Link all configs
     ./dot.sh status     # Check what's linked
     ./dot.sh doctor     # Run health checks
-    ./dot.sh install    # Install wezterm and nvim
+    ./dot.sh setup      # Install tools and link configs
+    ./dot.sh install    # Install wezterm, nvim, opencode, and copilot
 
 EOF
 }
@@ -389,6 +432,7 @@ case "${1:-help}" in
     doctor)  do_doctor ;;
     edit)    do_edit ;;
     install) do_install ;;
+    setup)   do_setup ;;
     help)    show_help ;;
     *)
         write_error "Unknown command: $1"
