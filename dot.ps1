@@ -73,6 +73,70 @@ function Test-IsAdmin {
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Convert-SharedSymlinkPlaceholders {
+    $placeholders = @(
+        ".copilot\AGENTS.md",
+        ".copilot\agents",
+        ".copilot\skills",
+        "opencode\AGENTS.md",
+        "opencode\agents",
+        "opencode\skills"
+    )
+
+    foreach ($relativePath in $placeholders) {
+        $path = Join-Path $script:ConfigSource $relativePath
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+
+        $item = Get-Item -LiteralPath $path -Force
+        $isSymlink = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+        $originalContent = $null
+
+        # Determine the link target
+        $linkTarget = $null
+        if ($isSymlink) {
+            $linkTarget = $item.Target
+            if (-not $linkTarget) { continue }
+            # Already a correct directory symlink — skip
+            if ($item.PSIsContainer) { continue }
+        }
+        else {
+            # Skip real directories
+            if ($item.PSIsContainer) { continue }
+            $originalContent = [string](Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue)
+            $linkTarget = $originalContent.Trim()
+            if (-not $linkTarget) { continue }
+            if (-not $linkTarget.StartsWith("../shared/")) { continue }
+        }
+
+        $linkTarget = $linkTarget -replace '/', '\'
+        $parentDir = Split-Path -Parent $path
+
+        # Resolve absolute target to check if it's a directory
+        $absoluteTarget = [System.IO.Path]::GetFullPath((Join-Path $parentDir $linkTarget))
+        $targetIsDir = Test-Path -LiteralPath $absoluteTarget -PathType Container
+
+        try {
+            Remove-Item -LiteralPath $path -Force -ErrorAction Stop
+
+            if ($targetIsDir) {
+                # cmd mklink /D guarantees a directory symlink
+                $output = cmd /c mklink /D "`"$path`"" "`"$linkTarget`"" 2>&1
+                if ($LASTEXITCODE -ne 0) { throw "mklink failed: $output" }
+            }
+            else {
+                New-Item -ItemType SymbolicLink -Path $path -Target $absoluteTarget -Force -ErrorAction Stop | Out-Null
+            }
+            Write-Info "Converted shared link placeholder: $relativePath"
+        }
+        catch {
+            if (-not (Test-Path -LiteralPath $path) -and $originalContent) {
+                Set-Content -LiteralPath $path -Value $originalContent -NoNewline
+            }
+            Write-Warning "Could not convert shared link placeholder: $relativePath - $_"
+        }
+    }
+}
+
 function Invoke-Link {
     Write-Header "Creating symlinks for dotfiles"
 
@@ -91,6 +155,8 @@ function Invoke-Link {
         }
         return
     }
+
+    Convert-SharedSymlinkPlaceholders
 
     $configs = Get-ConfigItems
     if ($configs.Count -eq 0) {
