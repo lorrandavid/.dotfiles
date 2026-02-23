@@ -55,7 +55,9 @@ function Get-ConfigItems {
     if (-not (Test-Path $script:ConfigSource)) {
         return @()
     }
-    Get-ChildItem -Path $script:ConfigSource -Directory | Select-Object -ExpandProperty Name
+    Get-ChildItem -Path $script:ConfigSource -Directory -Force |
+        Where-Object { $_.Name -ine 'powershell' } |
+        Select-Object -ExpandProperty Name
 }
 
 function Test-IsSymlink {
