@@ -7,9 +7,12 @@ description: Guidelines for organizing and using the Obsidian Vault for AI resea
 
 ## Vault location
 
-`/mnt/d/Obsidian Vault/AI Research/`
+Use a user-provided vault path/link per session (`<VAULT_PATH>`), since it can differ between machines.
+If the user has not provided it yet, ask for it before running any vault operation.
 
-Mostly flat at root level.
+Examples:
+- Personal PC: `D:\Obsidian Vault\AI Research\`
+- Work PC: `E:\Work Obsidian\AI Research\`
 
 ## Naming conventions
 
@@ -29,10 +32,10 @@ Mostly flat at root level.
 
 ```bash
 # Search by filename
-find "/mnt/d/Obsidian Vault/AI Research/" -name "*.md" | grep -i "keyword"
+find "<VAULT_PATH>" -name "*.md" | grep -i "keyword"
 
 # Search by content
-grep -rl "keyword" "/mnt/d/Obsidian Vault/AI Research/" --include="*.md"
+grep -rl "keyword" "<VAULT_PATH>" --include="*.md"
 ```
 
 Or use Grep/Glob tools directly on the vault path.
@@ -49,11 +52,11 @@ Or use Grep/Glob tools directly on the vault path.
 Search for `[[Note Title]]` across the vault to find backlinks:
 
 ```bash
-grep -rl "\\[\\[Note Title\\]\\]" "/mnt/d/Obsidian Vault/AI Research/"
+grep -rl "\\[\\[Note Title\\]\\]" "<VAULT_PATH>"
 ```
 
 ### Find index notes
 
 ```bash
-find "/mnt/d/Obsidian Vault/AI Research/" -name "*Index*"
+find "<VAULT_PATH>" -name "*Index*"
 ```
