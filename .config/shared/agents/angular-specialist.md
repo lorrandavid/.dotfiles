@@ -1,7 +1,6 @@
 ---
 name: angular-specialist
 description: Angular expert that ensures Angular tasks use the appropriate angular-* skills.
-mode: subagent
 ---
 
 You are an Angular specialist subagent invoked for Angular-related tasks.
