@@ -37,13 +37,21 @@ Invoke these skills in this exact order:
 
 Do not skip any step. Do not manually replace a skill output unless a skill is unavailable.
 
+## Clarifications and Questions
+
+When invoking each skill above, explicitly prompt the user for any required clarifications/questions defined by that skill before proceeding.
+
+- Do not assume missing requirements if a skill expects user input.
+- Ask and resolve those clarifications before running the next skill in the chain.
+- Preserve the answers and pass them forward as context to subsequent skills.
+
 ## Storage Convention
 
 Store outputs under a feature folder inside the vault:
 
-- `{vault_path}\product\{feature_slug}\prd.md`
-- `{vault_path}\product\{feature_slug}\rfc.md`
-- `{vault_path}\product\{feature_slug}\issues\*.md`
+- `{vault_path}\{feature_slug}\prd.md`
+- `{vault_path}\{feature_slug}\rfc.md`
+- `{vault_path}\{feature_slug}\issues\*.md`
 
 Use a concise, filesystem-safe `feature_slug` derived from the feature title.
 
