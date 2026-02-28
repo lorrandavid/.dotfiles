@@ -3,6 +3,7 @@
 - **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)
 - **Make illegal states unrepresentable**: Model domain with ADTs/discriminated unions; parse inputs at boundaries into typed structures; if state can't exist, code can't mishandle it
 - **Abstractions**: Consciously constrained, pragmatically parameterised, doggedly documented
+- **NEVER** use any fallback trickery
 
 ### **ENTROPY REMINDER**
 This codebase will outlive you. Every shortcut you take becomes
@@ -20,11 +21,11 @@ you cut will be cut again.
 
 - Write tests that verify semantically correct behavior
 - **Failing tests are acceptable** when they expose genuine bugs and test correct behavior
+- **NEVER** test what the type system already guarantees
 
 ## Git, Pull Requests, Commits
 
-- **ALWAYS check for `.jj/` dir before ANY VCS command** - if present, use jj not git
-- **Never** add Claude, GitHub, OpenCode to attribution or as a contributor PRs, commits, messages, or PR descriptions
+- **NEVER** add Claude, GitHub, OpenCode to attribution or as a contributor PRs, commits, messages, or PR descriptions
 
 ## Plans
 
