@@ -34,13 +34,11 @@ Present a concise summary of the work item to the user before continuing.
 
 ### Step 2 — Determine Base Branch
 
-| Work Item Type | Base Branch | Worktree Branch Prefix |
-|---------------|-------------|------------------------|
-| Task | `develop` | `feature/` |
-| User Story | `develop` | `feature/` |
-| Bug | `master` | `bugfix/` |
+**Ask the user** which base branch to use for the worktree (e.g., `develop`, `master`, `main`, or any other branch). Do NOT assume based on work item type.
 
-Derive a branch name: `<prefix><work_item_id>-<slugified-title>` (max 60 chars).
+Also ask which branch prefix to use (e.g., `feature/`, `bugfix/`, `hotfix/`).
+
+Derive the branch name: `<prefix><work_item_id>-<slugified-title>` (max 60 chars).
 
 ### Step 3 — Plan Implementation (`spec-planner`)
 

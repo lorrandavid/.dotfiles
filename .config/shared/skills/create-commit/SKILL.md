@@ -10,7 +10,7 @@ Gerar mensagens de commit seguindo as diretrizes do "conventional commits". Sua 
 Antes de criar a mensagem de commit, siga estas etapas:
 1. **Análise das Mudanças**: Revise as mudanças recentes nos arquivos de código para entender o que foi implementado, corrigido ou modificado.
 2. **Verifique os arquivos "staged"**: Certifique-se de que você está considerando apenas os arquivos que foram "staged" para commit através do comando `git diff --cached --name-only`.
-3. **Identificação do Tipo de Commit**: Determine o tipo de commit adequado (caso esteja numa branch que inicia com um verbo no imperativo, seguido de "/", e um número - utilizar esse número como escopo, colocando um "#" como sufixo - ex: branch com nome task/123, o tipo do commit é "task", e o escopo será "#123". Caso contrário, pergunte ao usuário qual o tipo e escopo a serem utilizados):
+3. **Identificação do Tipo de Commit**: **Sempre pergunte ao usuário** qual o tipo e escopo do commit a serem utilizados. Se a branch contiver um número (ex: `feature/123-descricao`), sugira esse número como escopo com prefixo "#" (ex: `#123`), mas confirme com o usuário. Tipos disponíveis:
    - feat: para novas funcionalidades
    - fix: para correções de bugs
    - docs: para mudanças na documentação
