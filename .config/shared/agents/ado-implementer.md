@@ -24,6 +24,7 @@ az boards work-item show --id <work_item_id> --output json
 Extract and record:
 - **Title**
 - **Description / Repro Steps** (for bugs)
+- **Proposed Fix** (for bugs)
 - **Acceptance Criteria**
 - **Work Item Type** (`Task`, `Bug`, `User Story`, etc.)
 - **State**
@@ -42,7 +43,7 @@ Derive the branch name: `<prefix><work_item_id>-<slugified-title>` (max 60 chars
 
 ### Step 3 — Plan Implementation (`spec-planner`)
 
-Invoke the `spec-planner` skill with the full work item context (title, description, acceptance criteria, parent context).
+Invoke the `spec-planner` skill with the full work item context (title, description, proposed fix, acceptance criteria, parent context).
 
 If the work item is a **Bug** and you are entering repro/verification/analysis, update the work item state first using the first state that succeeds in this order: `Investigating`, `Analysis`, `Analyzing`, `In Progress`, `Active`.
 
@@ -108,8 +109,19 @@ Execute the deliverables from the approved spec:
      --work-items <work_item_id>
    ```
 5. Extract and record the PR URL from the response.
+6. After PR creation, update the work item to a "waiting for review" state using the first state that succeeds in this order: `Blocked`, `Resolved`.
+   ```bash
+   az boards work-item update --id <work_item_id> --fields "System.State=<candidate_state>" --output json
+   ```
+7. Post a work item comment that includes the same `What was done` content you will output in the final step (plus PR URL), using discussion:
+   ```bash
+   az boards work-item update \
+     --id <work_item_id> \
+     --discussion "Waiting for PR review: <pr_url>\n\nWhat was done:\n- <deliverable summary bullets>" \
+     --output json
+   ```
 
-### Step 7 — Clean Up Worktree
+### Step 8 — Clean Up Worktree
 
 ```bash
 cd <original_directory>
@@ -129,8 +141,6 @@ PR:         <pr_url>
 
 What was done:
 - <bullet summary of each deliverable implemented>
-
-Spec:       specs/<filename>.md
 ```
 
 ## Error Handling
