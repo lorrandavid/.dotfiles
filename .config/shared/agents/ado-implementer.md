@@ -78,7 +78,9 @@ Execute the deliverables from the approved spec:
   ```bash
   az boards work-item update --id <work_item_id> --fields "System.State=<candidate_state>" --output json
   ```
-- Use **subagents** (`general-purpose` or domain-specific like `angular-specialist`) for implementation tasks to avoid context bloating.
+- Use **subagents** for implementation tasks to avoid context bloating.
+- For any Angular-related implementation task, **always** use the `angular-specialist` subagent.
+- Use `general-purpose` only for non-Angular implementation tasks.
 - Provide each subagent the full spec context and the specific deliverable to implement.
 - After each subagent completes, verify the changes.
 - Run existing linters, builds, and tests to confirm nothing is broken.
