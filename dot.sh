@@ -44,6 +44,25 @@ get_config_items() {
     find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' -printf '%f\n' | sort
 }
 
+get_config_target_name() {
+    local config="$1"
+
+    if [[ "$config" == ".copilot" ]]; then
+        printf '%s\n' "copilot"
+        return
+    fi
+
+    printf '%s\n' "$config"
+}
+
+get_config_legacy_target_names() {
+    local config="$1"
+
+    if [[ "$config" == ".copilot" ]]; then
+        printf '%s\n' ".copilot"
+    fi
+}
+
 ensure_xdg_config_home() {
     local desired_config_home="$HOME/.config"
     local profile_file="$HOME/.profile"
@@ -95,9 +114,35 @@ do_link() {
 
     for config in "${configs[@]}"; do
         local source="$CONFIG_SOURCE/$config"
-        local target="$CONFIG_TARGET/$config"
+        local target_name
+        target_name=$(get_config_target_name "$config")
+        local target="$CONFIG_TARGET/$target_name"
 
-        write_info "Processing: $config"
+        write_info "Processing: $target_name"
+
+        while IFS= read -r legacy_target_name; do
+            [[ -z "$legacy_target_name" ]] && continue
+
+            local legacy_target="$CONFIG_TARGET/$legacy_target_name"
+            if [[ "$legacy_target" == "$target" || ! -e "$legacy_target" && ! -L "$legacy_target" ]]; then
+                continue
+            fi
+
+            if is_symlink "$legacy_target"; then
+                rm -f "$legacy_target"
+                write_info "Removed legacy target: $legacy_target_name"
+                continue
+            fi
+
+            mkdir -p "$backup_path"
+            local legacy_backup_target="$backup_path/$target_name"
+            if [[ -e "$legacy_backup_target" || -L "$legacy_backup_target" ]]; then
+                legacy_backup_target="$backup_path/$legacy_target_name"
+            fi
+
+            write_warning "Backing up legacy $legacy_target_name to $legacy_backup_target"
+            mv "$legacy_target" "$legacy_backup_target"
+        done < <(get_config_legacy_target_names "$config")
 
         if [[ -e "$target" || -L "$target" ]]; then
             if is_symlink "$target"; then
@@ -106,23 +151,23 @@ do_link() {
                 local real_source
                 real_source=$(readlink -f "$source")
                 if [[ "$existing_link" == "$real_source" ]]; then
-                    write_success "$config already linked correctly"
+                    write_success "$target_name already linked correctly"
                     continue
                 fi
                 rm -f "$target"
             else
                 # Backup existing config
                 mkdir -p "$backup_path"
-                write_warning "Backing up existing $config to $backup_path"
-                mv "$target" "$backup_path/$config"
+                write_warning "Backing up existing $target_name to $backup_path"
+                mv "$target" "$backup_path/$target_name"
             fi
         fi
 
         # Create symlink
         if ln -s "$source" "$target" 2>/dev/null; then
-            write_success "$config linked: $target -> $source"
+            write_success "$target_name linked: $target -> $source"
         else
-            write_error "Failed to link $config"
+            write_error "Failed to link $target_name"
         fi
     done
 
@@ -140,20 +185,55 @@ do_unlink() {
     fi
 
     for config in "${configs[@]}"; do
-        local target="$CONFIG_TARGET/$config"
+        local target_name
+        target_name=$(get_config_target_name "$config")
+        local target="$CONFIG_TARGET/$target_name"
+
+        while IFS= read -r legacy_target_name; do
+            [[ -z "$legacy_target_name" ]] && continue
+
+            local legacy_target="$CONFIG_TARGET/$legacy_target_name"
+            if [[ ! -e "$legacy_target" && ! -L "$legacy_target" ]]; then
+                continue
+            fi
+
+            if is_symlink "$legacy_target"; then
+                rm -f "$legacy_target"
+                write_info "Removed legacy symlink: $legacy_target_name"
+            else
+                write_warning "Legacy target exists and was left untouched: $legacy_target_name"
+            fi
+        done < <(get_config_legacy_target_names "$config")
 
         if [[ -e "$target" || -L "$target" ]]; then
             if is_symlink "$target"; then
                 rm -f "$target"
-                write_success "Removed symlink: $config"
+                write_success "Removed symlink: $target_name"
 
                 # Restore backup if available
-                if [[ -n "$latest_backup" && -e "$latest_backup/$config" ]]; then
-                    mv "$latest_backup/$config" "$target"
-                    write_info "Restored backup for: $config"
+                if [[ -n "$latest_backup" ]]; then
+                    local backup_source=""
+                    local backup_candidates=("$target_name")
+
+                    while IFS= read -r legacy_target_name; do
+                        [[ -n "$legacy_target_name" ]] && backup_candidates+=("$legacy_target_name")
+                    done < <(get_config_legacy_target_names "$config")
+
+                    local backup_name
+                    for backup_name in "${backup_candidates[@]}"; do
+                        if [[ -e "$latest_backup/$backup_name" || -L "$latest_backup/$backup_name" ]]; then
+                            backup_source="$latest_backup/$backup_name"
+                            break
+                        fi
+                    done
+
+                    if [[ -n "$backup_source" ]]; then
+                        mv "$backup_source" "$target"
+                        write_info "Restored backup for: $target_name"
+                    fi
                 fi
             else
-                write_warning "$config is not a symlink, skipping"
+                write_warning "$target_name is not a symlink, skipping"
             fi
         fi
     done
@@ -174,12 +254,30 @@ do_status() {
 
     mapfile -t configs < <(get_config_items)
     for config in "${configs[@]}"; do
-        local target="$CONFIG_TARGET/$config"
+        local target_name
+        target_name=$(get_config_target_name "$config")
+        local target="$CONFIG_TARGET/$target_name"
         local source="$CONFIG_SOURCE/$config"
         local status
 
         if [[ ! -e "$target" && ! -L "$target" ]]; then
             status="Not linked"
+
+            while IFS= read -r legacy_target_name; do
+                [[ -z "$legacy_target_name" ]] && continue
+
+                local legacy_target="$CONFIG_TARGET/$legacy_target_name"
+                if [[ ! -e "$legacy_target" && ! -L "$legacy_target" ]]; then
+                    continue
+                fi
+
+                if is_symlink "$legacy_target"; then
+                    status="Legacy path linked"
+                else
+                    status="Legacy path exists"
+                fi
+                break
+            done < <(get_config_legacy_target_names "$config")
         elif is_symlink "$target"; then
             local link_target
             link_target=$(readlink -f "$target")
@@ -194,7 +292,7 @@ do_status() {
             status="Exists (not symlink)"
         fi
 
-        printf "%-30s %s\n" "$config" "$status"
+        printf "%-30s %s\n" "$target_name" "$status"
     done
     echo ""
 }
