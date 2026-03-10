@@ -17,12 +17,55 @@ const SYNTHETIC_PATTERNS = [
   /^Tool output:/i,
 ]
 
+const PLAN_BUILD_HANDOFF_PREFIX = "The plan at "
+const PLAN_BUILD_HANDOFF_SUFFIX = " has been approved, you can now edit files. Execute the plan"
+
+type MessageInfo = {
+  role?: string
+  agent?: string
+}
+
+type TextPart = {
+  type: "text"
+  text: string
+  synthetic?: boolean
+}
+
+type MessagePart =
+  | TextPart
+  | {
+      type: string
+    }
+
+type PreparedMessage = {
+  info: MessageInfo
+  parts?: MessagePart[]
+}
+
 function isSyntheticText(text: string): boolean {
   if (!text || typeof text !== "string") return false
   return SYNTHETIC_PATTERNS.some((p) => p.test(text.trim()))
 }
 
-function detectAgent(messages: { info: any; parts: any[] }[]): boolean {
+function isPlanBuildHandoffText(text: string): boolean {
+  const normalized = text.trim()
+  return normalized.startsWith(PLAN_BUILD_HANDOFF_PREFIX) && normalized.endsWith(PLAN_BUILD_HANDOFF_SUFFIX)
+}
+
+function isTextPart(part: MessagePart): part is TextPart {
+  return part.type === "text"
+}
+
+function isPlanBuildHandoffMessage(message: PreparedMessage): boolean {
+  if (message.info.role !== "user" || message.info.agent !== "build") return false
+
+  return (message.parts ?? []).some((part) => {
+    if (!isTextPart(part) || !part.synthetic) return false
+    return isPlanBuildHandoffText(part.text)
+  })
+}
+
+function detectAgent(messages: PreparedMessage[]): boolean {
   if (!Array.isArray(messages) || messages.length === 0) return false
 
   // Only override when the last user message is synthetic (compaction, tool
@@ -30,9 +73,11 @@ function detectAgent(messages: { info: any; parts: any[] }[]): boolean {
   // assistant/tool as last message via `last?.role !== "user"`.
   // Genuine user follow-ups must remain "user" so each is billed.
   const last = messages[messages.length - 1]
+  if (isPlanBuildHandoffMessage(last)) return false
+
   if (last?.info.role === "user") {
     for (const part of last.parts ?? []) {
-      if (part.type !== "text") continue
+      if (!isTextPart(part)) continue
       if (part.synthetic || isSyntheticText(part.text)) return true
     }
   }
