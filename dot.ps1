@@ -60,6 +60,81 @@ function Get-ConfigItems {
         Select-Object -ExpandProperty Name
 }
 
+function Get-PathBasename {
+    param([string]$Path)
+    return Split-Path -Path $Path -Leaf
+}
+
+function Get-ConfigDisplayName {
+    param([string]$Config)
+
+    if ($Config -eq ".copilot") {
+        return "~/.copilot"
+    }
+
+    return $Config
+}
+
+function Get-ConfigTargetPath {
+    param([string]$Config)
+
+    if ($Config -eq ".copilot") {
+        return Join-Path $env:USERPROFILE ".copilot"
+    }
+
+    return Join-Path $script:ConfigTarget $Config
+}
+
+function Get-ConfigBackupName {
+    param([string]$Config)
+
+    if ($Config -eq ".copilot") {
+        return ".copilot"
+    }
+
+    return $Config
+}
+
+function Get-ConfigLegacyTargetPaths {
+    param([string]$Config)
+
+    if ($Config -eq ".copilot") {
+        return @(
+            Join-Path $script:ConfigTarget "copilot",
+            Join-Path $script:ConfigTarget ".copilot"
+        )
+    }
+
+    return @()
+}
+
+function Get-ConfigLegacyBackupName {
+    param(
+        [string]$Config,
+        [string]$LegacyTargetPath
+    )
+
+    $legacyName = Get-PathBasename $LegacyTargetPath
+
+    if ($Config -eq ".copilot" -and $legacyName -eq ".copilot") {
+        return "config-.copilot"
+    }
+
+    return $legacyName
+}
+
+function Get-ConfigRestoreCandidates {
+    param([string]$Config)
+
+    $candidates = @(Get-ConfigBackupName $Config)
+
+    if ($Config -eq ".copilot") {
+        $candidates += @("copilot", "config-.copilot")
+    }
+
+    return $candidates
+}
+
 function Test-IsSymlink {
     param([string]$Path)
     if (-not (Test-Path $Path)) { return $false }
@@ -174,39 +249,66 @@ function Invoke-Link {
 
     foreach ($config in $configs) {
         $source = Join-Path $script:ConfigSource $config
-        $target = Join-Path $script:ConfigTarget $config
+        $displayName = Get-ConfigDisplayName $config
+        $target = Get-ConfigTargetPath $config
+        $backupName = Get-ConfigBackupName $config
 
-        Write-Info "Processing: $config"
+        Write-Info "Processing: $displayName"
+
+        foreach ($legacyTarget in (Get-ConfigLegacyTargetPaths $config)) {
+            if ($legacyTarget -eq $target -or -not (Test-Path -LiteralPath $legacyTarget)) {
+                continue
+            }
+
+            if (Test-IsSymlink $legacyTarget) {
+                Remove-Item -LiteralPath $legacyTarget -Force
+                Write-Info "Removed legacy target: $legacyTarget"
+                continue
+            }
+
+            if (-not (Test-Path $backupPath)) {
+                New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
+            }
+
+            $legacyBackupName = Get-ConfigLegacyBackupName $config $legacyTarget
+            $legacyBackupTarget = Join-Path $backupPath $legacyBackupName
+            Write-Warning "Backing up legacy $legacyTarget to $legacyBackupTarget"
+            Move-Item -LiteralPath $legacyTarget -Destination $legacyBackupTarget -Force
+        }
 
         # Check if target already exists
-        if (Test-Path $target) {
+        if (Test-Path -LiteralPath $target) {
             if (Test-IsSymlink $target) {
-                $existingLink = (Get-Item $target).Target
+                $existingLink = (Get-Item -LiteralPath $target).Target
                 if ($existingLink -eq $source) {
-                    Write-Success "$config already linked correctly"
+                    Write-Success "$displayName already linked correctly"
                     continue
                 }
                 # Remove incorrect symlink
-                Remove-Item $target -Force
+                Remove-Item -LiteralPath $target -Force
             }
             else {
                 # Backup existing config
                 if (-not (Test-Path $backupPath)) {
                     New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
                 }
-                $backupTarget = Join-Path $backupPath $config
-                Write-Warning "Backing up existing $config to $backupPath"
-                Move-Item -Path $target -Destination $backupTarget -Force
+                $backupTarget = Join-Path $backupPath $backupName
+                Write-Warning "Backing up existing $displayName to $backupPath"
+                Move-Item -LiteralPath $target -Destination $backupTarget -Force
             }
         }
 
         # Create symlink
         try {
+            $targetParent = Split-Path -Parent $target
+            if ($targetParent -and -not (Test-Path -LiteralPath $targetParent)) {
+                New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+            }
             New-Item -ItemType SymbolicLink -Path $target -Target $source -Force | Out-Null
-            Write-Success "$config linked: $target -> $source"
+            Write-Success "$displayName linked: $target -> $source"
         }
         catch {
-            Write-Error "Failed to link $config`: $_"
+            Write-Error "Failed to link $displayName`: $_"
         }
     }
 
@@ -222,24 +324,44 @@ function Invoke-Unlink {
                     Select-Object -First 1
 
     foreach ($config in $configs) {
-        $target = Join-Path $script:ConfigTarget $config
+        $displayName = Get-ConfigDisplayName $config
+        $target = Get-ConfigTargetPath $config
 
-        if (Test-Path $target) {
+        foreach ($legacyTarget in (Get-ConfigLegacyTargetPaths $config)) {
+            if (-not (Test-Path -LiteralPath $legacyTarget)) {
+                continue
+            }
+
+            if (Test-IsSymlink $legacyTarget) {
+                Remove-Item -LiteralPath $legacyTarget -Force
+                Write-Info "Removed legacy symlink: $legacyTarget"
+            }
+            else {
+                Write-Warning "Legacy target exists and was left untouched: $legacyTarget"
+            }
+        }
+
+        if (Test-Path -LiteralPath $target) {
             if (Test-IsSymlink $target) {
-                Remove-Item $target -Force
-                Write-Success "Removed symlink: $config"
+                Remove-Item -LiteralPath $target -Force
+                Write-Success "Removed symlink: $displayName"
 
                 # Restore backup if available
                 if ($latestBackup) {
-                    $backupSource = Join-Path $latestBackup.FullName $config
-                    if (Test-Path $backupSource) {
-                        Move-Item -Path $backupSource -Destination $target -Force
-                        Write-Info "Restored backup for: $config"
+                    foreach ($backupName in (Get-ConfigRestoreCandidates $config)) {
+                        $backupSource = Join-Path $latestBackup.FullName $backupName
+                        if (-not (Test-Path -LiteralPath $backupSource)) {
+                            continue
+                        }
+
+                        Move-Item -LiteralPath $backupSource -Destination $target -Force
+                        Write-Info "Restored backup for: $displayName"
+                        break
                     }
                 }
             }
             else {
-                Write-Warning "$config is not a symlink, skipping"
+                Write-Warning "$displayName is not a symlink, skipping"
             }
         }
     }
@@ -259,14 +381,32 @@ function Invoke-Status {
 
     $table = @()
     foreach ($config in $configs) {
-        $target = Join-Path $script:ConfigTarget $config
+        $displayName = Get-ConfigDisplayName $config
+        $target = Get-ConfigTargetPath $config
         $source = Join-Path $script:ConfigSource $config
 
-        $status = if (-not (Test-Path $target)) {
-            "Not linked"
+        $status = if (-not (Test-Path -LiteralPath $target)) {
+            $legacyStatus = $null
+
+            foreach ($legacyTarget in (Get-ConfigLegacyTargetPaths $config)) {
+                if (-not (Test-Path -LiteralPath $legacyTarget)) {
+                    continue
+                }
+
+                $legacyStatus = if (Test-IsSymlink $legacyTarget) {
+                    "Legacy path linked"
+                }
+                else {
+                    "Legacy path exists"
+                }
+
+                break
+            }
+
+            if ($legacyStatus) { $legacyStatus } else { "Not linked" }
         }
         elseif (Test-IsSymlink $target) {
-            $linkTarget = (Get-Item $target).Target
+            $linkTarget = (Get-Item -LiteralPath $target).Target
             if ($linkTarget -eq $source) { "Linked" } else { "Wrong target" }
         }
         else {
@@ -274,7 +414,7 @@ function Invoke-Status {
         }
 
         $table += [PSCustomObject]@{
-            Config = $config
+            Config = $displayName
             Status = $status
         }
     }
