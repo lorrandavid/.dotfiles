@@ -1,14 +1,16 @@
 ---
 name: code-review
-description: Review changes with parallel @code-reviewer subagents
+description: Review changes with parallel @code-review subagents
 ---
 
-Review the code changes using TWO (2) @code-reviewer subagents (one using GPT-5.2-Codex High and the other one using Sonnet 4.5) and correlate results into a summary ranked by severity. Use the provided user guidance to steer the review and focus on specific code paths, changes, and/or areas of concern. Once all two @code-reviewer subagents return their findings and you have correlated and summarized the results, consult the @oracle subagent to perform a deep review on the findings focusing on accuracy and correctness by evaluating the surrounding code, system, subsystems, abstractions, and overall architecture of each item. NEVER SKIP ORACLE REVIEW.
+Review uncommitted changes by default. If no uncommitted changes, review the last commit. If the user provides a PR/MR number or link, fetch it with CLI tools first.
 
 Guidance: $ARGUMENTS
 
-Review uncommitted changes by default. If no uncommitted changes, review the last commit. If the user provides a pull request/merge request number or link, invoke the pr-checkout skill to checkout the PR/MR and review the changes in that context.
+Launch THREE (3) @code-review subagents in parallel. Give each a different focus area. If the user guidance specifies areas, use those. Otherwise default to: (1) correctness, (2) security & resilience, (3) complexity & maintainability. Include the focus area in each subagent's prompt.
 
-```
-skill({ name: `pr-checkout` })
-```
+After all three complete, deduplicate their findings — keep the version with better evidence, use the higher severity when they disagree, and drop anything without a `file:line` reference. Run the project's lint/test commands to catch anything the reviewers missed.
+
+Then launch ONE (1) final @code-review subagent to validate. Pass it the compiled findings, the user guidance, and this instruction: "For each finding, read the code at the referenced file:line. Classify as **Confirmed** (provably real), **Disputed** (not supported by the code), or **Acknowledged** (real but not worth fixing). Return only Confirmed findings."
+
+Present only Confirmed findings to the user, ranked by severity. If nothing survived validation, say so.
