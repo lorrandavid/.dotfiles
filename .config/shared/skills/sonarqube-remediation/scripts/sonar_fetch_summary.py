@@ -37,7 +37,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-key", required=True, help="SonarQube project key")
     parser.add_argument("--branch", help="Branch name")
     parser.add_argument("--pull-request", help="Pull request identifier")
-    parser.add_argument("--organization", help="SonarCloud organization key")
     parser.add_argument("--metrics", help="Comma-separated metric keys")
     return parser.parse_args()
 
@@ -85,7 +84,7 @@ def quality_gate_summary(gate_payload: dict[str, object]) -> dict[str, object]:
 
 def main() -> None:
     args = parse_args()
-    config = read_config(args.organization)
+    config = read_config()
     metrics = parse_csv(args.metrics) if args.metrics else DEFAULT_METRICS
     metric_keys = ",".join(metrics)
 
@@ -97,7 +96,6 @@ def main() -> None:
             ("metricKeys", metric_keys),
             ("branch", args.branch),
             ("pullRequest", args.pull_request),
-            ("organization", config.organization),
         ],
     )
     gate_payload, gate_headers = api_get(
@@ -107,7 +105,6 @@ def main() -> None:
             ("projectKey", args.project_key),
             ("branch", args.branch),
             ("pullRequest", args.pull_request),
-            ("organization", config.organization),
         ],
     )
 
@@ -116,7 +113,6 @@ def main() -> None:
             "key": args.project_key,
             "branch": args.branch,
             "pull_request": args.pull_request,
-            "organization": config.organization,
         },
         "measures": metric_value_map(measures_payload),
         "quality_gate": quality_gate_summary(gate_payload),

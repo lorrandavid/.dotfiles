@@ -15,7 +15,7 @@ Use this skill when SonarQube should be the verification layer for code changes 
 ## Rules
 
 - Prefer the bundled REST helper scripts for retrieval.
-- Treat SonarQube Server as the default v1 target; allow SonarCloud when `SONARQUBE_ORG` is provided.
+- Treat SonarQube Server as the target.
 - Never commit tokens, `.env` files, or machine-local MCP config.
 - Keep autonomous fixes conservative and locally verifiable.
 - Re-run the target repo's checks before claiming a Sonar issue is resolved.
@@ -30,7 +30,6 @@ Use this skill when SonarQube should be the verification layer for code changes 
 
 - `SONARQUBE_URL`
 - `SONARQUBE_TOKEN`
-- `SONARQUBE_ORG` for SonarCloud only
 
 ## Quick start
 
@@ -48,6 +47,12 @@ Open issues:
 
 ```bash
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
+```
+
+If the helper output disagrees with the UI or a manual request, compare against this raw API form:
+
+```bash
+curl -s -u "$SONARQUBE_TOKEN:" "$SONARQUBE_URL/api/issues/search?componentKeys=<project-key>&types=BUG,CODE_SMELL&statuses=OPEN,CONFIRMED&ps=100"
 ```
 
 ```powershell
@@ -98,6 +103,7 @@ py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py
 
 Use `sonar_fetch_issues.py` with filters:
 
+- project scope uses `componentKeys=<project-key>` under the hood
 - `--types BUG,CODE_SMELL`
 - `--severities BLOCKER,CRITICAL,MAJOR`
 - `--statuses OPEN,CONFIRMED,REOPENED`

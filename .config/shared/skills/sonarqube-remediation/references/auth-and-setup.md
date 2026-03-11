@@ -14,30 +14,24 @@ $env:SONARQUBE_URL = "https://sonarqube.example.com"
 $env:SONARQUBE_TOKEN = "<token>"
 ```
 
-For SonarCloud:
-
-```bash
-export SONARQUBE_URL="https://sonarcloud.io"
-export SONARQUBE_TOKEN="<token>"
-export SONARQUBE_ORG="<organization-key>"
-```
-
-```powershell
-$env:SONARQUBE_URL = "https://sonarcloud.io"
-$env:SONARQUBE_TOKEN = "<token>"
-$env:SONARQUBE_ORG = "<organization-key>"
-```
-
 ## Auth model
 
-- Use bearer auth: `Authorization: Bearer <token>`
+- The helper scripts authenticate the same way as `curl -u "$SONARQUBE_TOKEN:"`
+- They send `Authorization: Basic base64("<token>:")`
 - Generate a user token with browse access to the target project
 - Never place tokens in repo files or command history screenshots
+
+Raw API parity check:
+
+```bash
+curl -s -u "$SONARQUBE_TOKEN:" \
+  "$SONARQUBE_URL/api/issues/search?componentKeys=my-project&types=BUG&statuses=OPEN&ps=100"
+```
 
 ## Prerequisites
 
 - Python 3.10+ for the bundled scripts
-- Access to the SonarQube project or SonarCloud organization
+- Access to the SonarQube project
 - A known Sonar project key
 - On Windows, PowerShell 5.1+ or PowerShell 7+ with `py -3` or `python` on `PATH`
 
@@ -69,4 +63,3 @@ py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py
 
 - Default to project-level reads.
 - Add `--branch` or `--pull-request` only when you specifically need branch or PR analysis.
-- Use `SONARQUBE_ORG` only for SonarCloud requests.

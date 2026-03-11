@@ -23,7 +23,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-key", required=True, help="SonarQube project key")
     parser.add_argument("--branch", help="Branch name")
     parser.add_argument("--pull-request", help="Pull request identifier")
-    parser.add_argument("--organization", help="SonarCloud organization key")
     parser.add_argument("--timeout-seconds", type=int, default=600, help="Maximum wait time")
     parser.add_argument("--poll-interval-seconds", type=int, default=10, help="Polling interval")
     parser.add_argument("--baseline-analysis-key", help="Known previous analysis key")
@@ -55,7 +54,6 @@ def fetch_latest_analysis(config: SonarConfig, args: argparse.Namespace) -> dict
             ("project", args.project_key),
             ("branch", args.branch),
             ("pullRequest", args.pull_request),
-            ("organization", config.organization),
             ("ps", "1"),
         ],
     )
@@ -64,7 +62,7 @@ def fetch_latest_analysis(config: SonarConfig, args: argparse.Namespace) -> dict
 
 def main() -> None:
     args = parse_args()
-    config = read_config(args.organization)
+    config = read_config()
     started_at = time.monotonic()
     baseline = args.baseline_analysis_key
     if baseline is None:
@@ -83,7 +81,6 @@ def main() -> None:
                         "key": args.project_key,
                         "branch": args.branch,
                         "pull_request": args.pull_request,
-                        "organization": config.organization,
                     },
                     "status": "completed",
                     "baseline_analysis_key": baseline,
@@ -101,7 +98,6 @@ def main() -> None:
                         "key": args.project_key,
                         "branch": args.branch,
                         "pull_request": args.pull_request,
-                        "organization": config.organization,
                     },
                     "status": "timeout",
                     "baseline_analysis_key": baseline,

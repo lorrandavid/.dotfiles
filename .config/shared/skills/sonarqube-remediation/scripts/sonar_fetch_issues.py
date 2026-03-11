@@ -21,7 +21,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-key", required=True, help="SonarQube project key")
     parser.add_argument("--branch", help="Branch name")
     parser.add_argument("--pull-request", help="Pull request identifier")
-    parser.add_argument("--organization", help="SonarCloud organization key")
     parser.add_argument("--types", help="Comma-separated issue types")
     parser.add_argument("--severities", help="Comma-separated severities")
     parser.add_argument("--statuses", help="Comma-separated statuses")
@@ -32,6 +31,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--page-size", type=int, default=100, help="Page size up to 500")
     parser.add_argument("--max-pages", type=int, default=1, help="How many pages to fetch")
     return parser.parse_args()
+
+
+def issue_search_params(
+    args: argparse.Namespace,
+    page_index: int,
+    page_size: int,
+) -> list[tuple[str, str | None]]:
+    return [
+        ("componentKeys", args.project_key),
+        ("branch", args.branch),
+        ("pullRequest", args.pull_request),
+        ("types", args.types),
+        ("severities", args.severities),
+        ("statuses", args.statuses),
+        ("resolved", args.resolved),
+        ("assignees", args.assignees),
+        ("createdAfter", args.created_after),
+        ("languages", args.languages),
+        ("p", str(page_index)),
+        ("ps", str(page_size)),
+    ]
 
 
 def clamp_page_size(page_size: int) -> int:
@@ -88,7 +108,7 @@ def summarize_issue(raw_issue: object, base_url: str) -> dict[str, object]:
 
 def main() -> None:
     args = parse_args()
-    config = read_config(args.organization)
+    config = read_config()
     page_size = clamp_page_size(args.page_size)
 
     issues: list[dict[str, object]] = []
@@ -98,21 +118,7 @@ def main() -> None:
         payload, headers = api_get(
             config,
             "/api/issues/search",
-            [
-                ("projects", args.project_key),
-                ("branch", args.branch),
-                ("pullRequest", args.pull_request),
-                ("organization", config.organization),
-                ("types", args.types),
-                ("severities", args.severities),
-                ("statuses", args.statuses),
-                ("resolved", args.resolved),
-                ("assignees", args.assignees),
-                ("createdAfter", args.created_after),
-                ("languages", args.languages),
-                ("p", str(page_index)),
-                ("ps", str(page_size)),
-            ],
+            issue_search_params(args, page_index, page_size),
         )
         raw_issues = expect_list(payload.get("issues"), "issues")
         for raw_issue in raw_issues:
@@ -140,7 +146,6 @@ def main() -> None:
             "key": args.project_key,
             "branch": args.branch,
             "pull_request": args.pull_request,
-            "organization": config.organization,
         },
         "filters": {
             "types": args.types,

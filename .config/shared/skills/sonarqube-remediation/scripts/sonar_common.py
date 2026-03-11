@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import sys
@@ -24,22 +25,25 @@ class SonarError(Exception):
 class SonarConfig:
     base_url: str
     token: str
-    organization: str | None
 
 
 def die(message: str) -> NoReturn:
     raise SonarError(message)
 
 
-def read_config(organization_override: str | None) -> SonarConfig:
+def read_config() -> SonarConfig:
     base_url = os.environ.get("SONARQUBE_URL", "").strip()
     token = os.environ.get("SONARQUBE_TOKEN", "").strip()
     if not base_url:
         die("Missing SONARQUBE_URL environment variable")
     if not token:
         die("Missing SONARQUBE_TOKEN environment variable")
-    organization = organization_override or os.environ.get("SONARQUBE_ORG", "").strip() or None
-    return SonarConfig(base_url=base_url.rstrip("/"), token=token, organization=organization)
+    return SonarConfig(base_url=base_url.rstrip("/"), token=token)
+
+
+def auth_headers(config: SonarConfig) -> dict[str, str]:
+    encoded_token = base64.b64encode(f"{config.token}:".encode("utf-8")).decode("ascii")
+    return {"Authorization": f"Basic {encoded_token}"}
 
 
 def parse_csv(value: str | None) -> list[str]:
@@ -66,7 +70,7 @@ def api_get(config: SonarConfig, path: str, params: list[tuple[str, str | None]]
         url,
         headers={
             "Accept": "application/json",
-            "Authorization": f"Bearer {config.token}",
+            **auth_headers(config),
         },
         method="GET",
     )
@@ -123,22 +127,6 @@ def iso_now() -> str:
 def json_dump(payload: dict[str, object]) -> None:
     sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True))
     sys.stdout.write("\n")
-
-
-def project_params(
-    project_key: str,
-    branch: str | None,
-    pull_request: str | None,
-    organization: str | None,
-) -> list[tuple[str, str | None]]:
-    return [
-        ("component", project_key),
-        ("project", project_key),
-        ("projectKey", project_key),
-        ("branch", branch),
-        ("pullRequest", pull_request),
-        ("organization", organization),
-    ]
 
 
 def main_guard(main_fn: Callable[[], None]) -> None:

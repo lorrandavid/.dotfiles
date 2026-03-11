@@ -35,7 +35,7 @@ py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py
 
 ## Issues endpoint usage
 
-`sonar_fetch_issues.py` fetches issues from `/api/issues/search`.
+`sonar_fetch_issues.py` fetches issues from `/api/issues/search` and scopes project results with `componentKeys`.
 
 Useful filters:
 
@@ -62,6 +62,13 @@ py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py 
   --types BUG,CODE_SMELL `
   --statuses OPEN,CONFIRMED `
   --max-pages 3
+```
+
+Equivalent raw API request:
+
+```bash
+curl -s -u "$SONARQUBE_TOKEN:" \
+  "$SONARQUBE_URL/api/issues/search?componentKeys=my-project&types=BUG,CODE_SMELL&statuses=OPEN,CONFIRMED&ps=100"
 ```
 
 ## Polling usage
