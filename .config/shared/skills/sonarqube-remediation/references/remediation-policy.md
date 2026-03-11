@@ -30,7 +30,7 @@ Use SonarQube data to guide fixes, not to blindly rewrite code.
 2. Select one issue or one small duplication cluster.
 3. Read the surrounding code and existing tests.
 4. Apply the minimal fix.
-5. Run repo validation.
+5. Run repo validation from the current shell, keeping command examples shell-correct for Bash or PowerShell.
 6. Wait for fresh Sonar analysis.
 7. Confirm the specific issue count or metric improves.
 

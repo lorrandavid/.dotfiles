@@ -9,12 +9,23 @@ export SONARQUBE_URL="https://sonarqube.example.com"
 export SONARQUBE_TOKEN="<token>"
 ```
 
+```powershell
+$env:SONARQUBE_URL = "https://sonarqube.example.com"
+$env:SONARQUBE_TOKEN = "<token>"
+```
+
 For SonarCloud:
 
 ```bash
 export SONARQUBE_URL="https://sonarcloud.io"
 export SONARQUBE_TOKEN="<token>"
 export SONARQUBE_ORG="<organization-key>"
+```
+
+```powershell
+$env:SONARQUBE_URL = "https://sonarcloud.io"
+$env:SONARQUBE_TOKEN = "<token>"
+$env:SONARQUBE_ORG = "<organization-key>"
 ```
 
 ## Auth model
@@ -28,6 +39,7 @@ export SONARQUBE_ORG="<organization-key>"
 - Python 3.10+ for the bundled scripts
 - Access to the SonarQube project or SonarCloud organization
 - A known Sonar project key
+- On Windows, PowerShell 5.1+ or PowerShell 7+ with `py -3` or `python` on `PATH`
 
 ## Optional local tools
 
@@ -45,6 +57,10 @@ Use them as local conveniences only. The bundled scripts remain the stable skill
 
 ```bash
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
+```
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
 ```
 
 3. If the token expires, rotate it outside the repo and update only your local environment.

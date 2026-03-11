@@ -27,6 +27,12 @@ If `project_key` is missing, ask for it before proceeding.
 
 ## Mandatory workflow
 
+## Shell selection
+
+- On macOS/Linux shells, use `python3`.
+- On Windows PowerShell, use `py -3` if available, otherwise `python`.
+- Keep paths repo-relative with forward slashes, for example `.config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py`.
+
 ### 1. Fetch current state
 
 Use the `sonarqube-remediation` skill helpers first:
@@ -34,6 +40,13 @@ Use the `sonarqube-remediation` skill helpers first:
 ```bash
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project_key>
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project_key>
+```
+
+Windows PowerShell equivalent:
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project_key>
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project_key>
 ```
 
 ### 2. Select conservative targets
@@ -66,6 +79,12 @@ python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.p
 
 ```bash
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project_key>
+```
+
+- Windows PowerShell equivalent:
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project_key>
 ```
 
 - Re-fetch summary and issues.

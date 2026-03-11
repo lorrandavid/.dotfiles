@@ -27,6 +27,12 @@ python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.
   --branch main
 ```
 
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py `
+  --project-key my-project `
+  --branch main
+```
+
 ## Issues endpoint usage
 
 `sonar_fetch_issues.py` fetches issues from `/api/issues/search`.
@@ -50,6 +56,14 @@ python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.p
   --max-pages 3
 ```
 
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py `
+  --project-key my-project `
+  --types BUG,CODE_SMELL `
+  --statuses OPEN,CONFIRMED `
+  --max-pages 3
+```
+
 ## Polling usage
 
 `sonar_poll_analysis.py` waits for a newer completed analysis visible in `/api/project_analyses/search`.
@@ -65,6 +79,13 @@ Example:
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py \
   --project-key my-project \
   --branch main \
+  --timeout-seconds 900
+```
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py `
+  --project-key my-project `
+  --branch main `
   --timeout-seconds 900
 ```
 

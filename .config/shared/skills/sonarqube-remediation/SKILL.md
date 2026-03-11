@@ -20,6 +20,12 @@ Use this skill when SonarQube should be the verification layer for code changes 
 - Keep autonomous fixes conservative and locally verifiable.
 - Re-run the target repo's checks before claiming a Sonar issue is resolved.
 
+## Shell compatibility
+
+- Bash/zsh: use `python3`.
+- Windows PowerShell: prefer `py -3`; use `python` only if `py` is unavailable.
+- Keep script paths relative and with forward slashes so the same commands work across shells.
+
 ## Required environment
 
 - `SONARQUBE_URL`
@@ -34,16 +40,28 @@ Project summary:
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
 ```
 
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
+```
+
 Open issues:
 
 ```bash
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
 ```
 
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
+```
+
 Wait for fresh analysis after a scan:
 
 ```bash
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project-key> --timeout-seconds 600
+```
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project-key> --timeout-seconds 600
 ```
 
 ## Workflow
@@ -70,6 +88,12 @@ Use `sonar_fetch_summary.py` to get:
 - `duplicated_blocks`
 - quality gate status
 
+PowerShell:
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key my-project --branch main
+```
+
 ### 2. Narrow issue selection
 
 Use `sonar_fetch_issues.py` with filters:
@@ -79,9 +103,21 @@ Use `sonar_fetch_issues.py` with filters:
 - `--statuses OPEN,CONFIRMED,REOPENED`
 - `--branch <branch>` when validating branch-specific work
 
+PowerShell:
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key my-project --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 3
+```
+
 ### 3. Poll after analysis
 
 Use `sonar_poll_analysis.py` after CI or local scanner execution to wait for a newer analysis before trusting counts.
+
+PowerShell:
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key my-project --branch main --timeout-seconds 900
+```
 
 ## Optional tooling
 

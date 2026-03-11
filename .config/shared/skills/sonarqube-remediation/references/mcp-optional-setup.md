@@ -19,6 +19,7 @@ The official SonarQube MCP server is a good enhancement path for richer agent wo
 - keep MCP config outside shared skill files
 - use env vars for tokens and server URL
 - do not hardcode credentials into `.config/opencode/opencode.json`
+- keep PowerShell-specific local setup in user docs or profile snippets, not in shared repo config
 
 ## Recommended order
 
