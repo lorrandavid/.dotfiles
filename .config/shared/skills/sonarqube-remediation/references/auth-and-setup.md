@@ -1,0 +1,56 @@
+# Auth and setup
+
+Use environment variables only.
+
+## Required variables
+
+```bash
+export SONARQUBE_URL="https://sonarqube.example.com"
+export SONARQUBE_TOKEN="<token>"
+```
+
+For SonarCloud:
+
+```bash
+export SONARQUBE_URL="https://sonarcloud.io"
+export SONARQUBE_TOKEN="<token>"
+export SONARQUBE_ORG="<organization-key>"
+```
+
+## Auth model
+
+- Use bearer auth: `Authorization: Bearer <token>`
+- Generate a user token with browse access to the target project
+- Never place tokens in repo files or command history screenshots
+
+## Prerequisites
+
+- Python 3.10+ for the bundled scripts
+- Access to the SonarQube project or SonarCloud organization
+- A known Sonar project key
+
+## Optional local tools
+
+Official Sonar tooling that may help:
+
+- `sonar` CLI: newer unified Sonar CLI with auth, list, analyze, and integrate commands
+- `sonar-scanner`: standard scanner for running analyses
+
+Use them as local conveniences only. The bundled scripts remain the stable skill contract.
+
+## Safe setup checklist
+
+1. Export env vars in your shell profile or a local secret manager.
+2. Verify access with a read-only request:
+
+```bash
+python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
+```
+
+3. If the token expires, rotate it outside the repo and update only your local environment.
+
+## Scope guidance
+
+- Default to project-level reads.
+- Add `--branch` or `--pull-request` only when you specifically need branch or PR analysis.
+- Use `SONARQUBE_ORG` only for SonarCloud requests.
