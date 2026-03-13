@@ -10,7 +10,7 @@ references:
 
 # SonarQube Remediation
 
-Use this skill when SonarQube should be the verification layer for code changes or autonomous cleanup.
+Use this skill when SonarQube should be the source of findings for conservative code cleanup.
 
 ## Rules
 
@@ -18,8 +18,9 @@ Use this skill when SonarQube should be the verification layer for code changes 
 - Treat SonarQube Server as the target.
 - Never commit tokens, `.env` files, or machine-local MCP config.
 - Keep autonomous fixes conservative and locally verifiable.
-- Re-run the target repo's checks before claiming a Sonar issue is resolved.
-- Do not commit or open a PR until local checks and SonarQube verification have both passed.
+- Re-run the target repo's checks before claiming a remediation is ready.
+- Do not attempt to run a local Sonar re-analysis or require local Sonar verification after making changes.
+- Do not commit or open a PR until the relevant local checks and the project build have passed.
 
 ## Shell compatibility
 
@@ -60,16 +61,6 @@ curl -s -u "$SONARQUBE_TOKEN:" "$SONARQUBE_URL/api/issues/search?componentKeys=<
 py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
 ```
 
-Wait for fresh analysis after a scan:
-
-```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project-key> --timeout-seconds 600
-```
-
-```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project-key> --timeout-seconds 600
-```
-
 ## Workflow
 
 1. Confirm auth and target project.
@@ -77,8 +68,8 @@ py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py
 3. Fetch a scoped issue list for actionable items.
 4. Rank findings by risk and fixability.
 5. Apply one conservative fix at a time.
-6. Run the target repo's tests, lint, and type checks.
-7. Trigger or wait for a new Sonar analysis, then re-fetch summary/issues.
+6. Run the target repo's relevant tests plus any lint and type checks that already exist.
+7. Run the project build and stop if it fails.
 8. Stage only the verified remediation files and use the `create-commit` skill to generate and apply the commit message.
 9. Create a pull request with the `azure-devops-cli` skill, using the same generated commit title for the PR title and the same generated commit body for the PR description.
 10. Clean up the remediation worktree after the branch is pushed and the PR is created.
@@ -119,22 +110,14 @@ PowerShell:
 py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key my-project --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 3
 ```
 
-### 3. Poll after analysis
+### 3. Local verification, commit, PR, and cleanup
 
-Use `sonar_poll_analysis.py` after CI or local scanner execution to wait for a newer analysis before trusting counts.
-
-PowerShell:
-
-```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key my-project --branch main --timeout-seconds 900
-```
-
-### 4. Commit, PR, and cleanup
-
-After the remediation is verified locally and in SonarQube:
+After the remediation is verified with local project checks:
 
 - Invoke the `create-commit` skill.
 - Follow that skill's requirement to ask the user for commit type and scope when needed.
+- Run the project's test suite and build before creating the commit.
+- Run existing lint and typecheck commands when the target repo defines them.
 - Stage only the files that belong to the verified remediation before creating the commit.
 - Reuse the generated commit title as the PR title.
 - Reuse the generated commit body as the PR description when invoking the `azure-devops-cli` skill to open the pull request.
@@ -145,7 +128,7 @@ After the remediation is verified locally and in SonarQube:
 
 - `SonarQube MCP server`: useful for richer agent workflows, but optional here because MCP is global, not per skill.
 - `sonar` CLI: useful if installed locally, but not the required contract for this skill.
-- `sonar-scanner`: use for re-analysis, not for primary retrieval.
+- `sonar-scanner`: optional for CI-managed analysis, not required for this skill's local workflow.
 
 ## When to use the optional agent
 

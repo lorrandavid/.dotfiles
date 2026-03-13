@@ -1,6 +1,6 @@
 ---
 name: sonarqube-remediator
-description: Conservative SonarQube remediation specialist that fetches findings, ranks low-risk fixes, patches code, and verifies improvement with local checks plus fresh Sonar analysis.
+description: Conservative SonarQube remediation specialist that fetches findings, ranks low-risk fixes, patches code, and verifies the result with local checks and a successful build.
 mode: subagent
 temperature: 0.1
 permission:
@@ -73,22 +73,11 @@ py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py 
 - Prefer project-defined lint, typecheck, test, and build commands.
 - If checks fail, fix or report before continuing.
 
-### 6. Verify in SonarQube
+### 6. Do not revalidate in SonarQube locally
 
-- Wait for a fresh analysis using:
-
-```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project_key>
-```
-
-- Windows PowerShell equivalent:
-
-```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py --project-key <project_key>
-```
-
-- Re-fetch summary and issues.
-- Confirm the target issue disappeared or the relevant metric improved.
+- Do not run `sonar-scanner` or require a fresh SonarQube analysis after the code change.
+- Treat SonarQube as the source of findings, not the local completion gate.
+- Completion requires successful local checks and a successful project build.
 
 ### 7. Commit verified changes
 
@@ -120,7 +109,7 @@ Resolved:
 
 Evidence:
 - <local checks>
-- <Sonar before/after>
+- <build result>
 
 Commit:
 - <commit sha or subject>
