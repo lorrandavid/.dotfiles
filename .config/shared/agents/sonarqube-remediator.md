@@ -90,6 +90,26 @@ py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py
 - Re-fetch summary and issues.
 - Confirm the target issue disappeared or the relevant metric improved.
 
+### 7. Commit verified changes
+
+- Stage only the files that belong to the verified remediation.
+- Invoke the `create-commit` skill to generate the commit message.
+- If commit type or scope is not already known, ask the user as required by that skill before creating the commit.
+- Do not create a commit when verification failed or when no remediation changes remain to stage.
+
+### 8. Open the pull request
+
+- Invoke the `azure-devops-cli` skill after the branch is pushed.
+- Use the generated commit title as the PR title.
+- Use the generated commit body as the PR description.
+- Return the PR URL or identifier in the final handoff.
+
+### 9. Clean up the worktree
+
+- If the remediation ran in a temporary worktree, remove it after the PR is created.
+- Never remove a worktree that still has uncommitted changes.
+- Do not delete the user's primary checkout.
+
 ## Output
 
 Return:
@@ -101,6 +121,12 @@ Resolved:
 Evidence:
 - <local checks>
 - <Sonar before/after>
+
+Commit:
+- <commit sha or subject>
+
+Pull request:
+- <PR URL or identifier>
 
 Remaining risks:
 - <if any>
