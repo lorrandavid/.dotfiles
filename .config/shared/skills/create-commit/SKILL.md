@@ -18,6 +18,7 @@ Antes de criar a mensagem de commit, siga estas etapas:
    - refactor: para mudanças no código que não adicionam funcionalidades nem corrigem bugs
    - test: para adição ou modificação de testes
    - chore: para tarefas de manutenção e outras mudanças que não afetam o código-fonte ou os testes
+   - task: para tarefas de trabalho que não se encaixam claramente nos tipos convencionais acima
 
 Sempre que necessário, peça mais informações ao usuário para garantir que a mensagem de commit seja completa e precisa.
 
