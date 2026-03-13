@@ -29,25 +29,14 @@ If `project_key` is missing, ask for it before proceeding.
 
 ## Shell selection
 
-- On macOS/Linux shells, use `python3`.
-- On Windows PowerShell, use `py -3` if available, otherwise `python`.
-- Keep paths repo-relative with forward slashes, for example `.config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py`.
+- Use the `sonarqube-remediation` skill's shell guidance and helper commands.
 
 ### 1. Fetch current state
 
 Use the `sonarqube-remediation` skill helpers first:
-
-```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project_key>
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project_key>
-```
-
-Windows PowerShell equivalent:
-
-```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project_key>
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project_key>
-```
+- Fetch project summary metrics and quality gate state.
+- Fetch the current scoped issue list for the requested project and branch context.
+- If helper output disagrees with the SonarQube UI or a raw API check, stop and report the mismatch.
 
 ### 2. Select conservative targets
 
