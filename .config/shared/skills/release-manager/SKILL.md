@@ -17,7 +17,7 @@ WORKFLOW YOU MUST FOLLOW
 
 2) Gather commit_log: commit history between base_version and target_version
 
-3) Invoke ONE (1) @release-manager subagent (using GPT-5.2-Codex High) with:
+3) Invoke ONE (1) @release-manager subagent (using GPT-5.4 High) with:
    - base_version
    - target_version
    - commit_log
