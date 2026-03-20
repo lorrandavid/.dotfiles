@@ -2,6 +2,10 @@
 
 The bundled scripts wrap the SonarQube Web API.
 
+## Preferred execution model
+
+Unless you are already inside a dedicated fetch subagent, do not run these commands in the main agent. Pass the exact helper command to a narrow execution-oriented subagent so raw JSON, pagination detail, and mismatch checks stay out of the main context window.
+
 ## Summary endpoint usage
 
 `sonar_fetch_summary.py` fetches measures from `/api/measures/component` and quality gate state from `/api/qualitygates/project_status`.
@@ -75,6 +79,8 @@ curl -s -u "$SONARQUBE_TOKEN:" \
 
 `sonar_poll_analysis.py` waits for a newer completed analysis visible in `/api/project_analyses/search`.
 
+Run polling in a narrow execution-oriented subagent as well, because it can emit repeated status output while it waits.
+
 Use it after:
 
 - CI finishes a Sonar analysis
@@ -103,5 +109,7 @@ The scripts return compact JSON so an agent can:
 - rank findings deterministically
 - avoid scraping HTML or UI text
 - compare before/after metrics
+
+When using the preferred subagent flow, have the fetch subagent return the raw compact JSON plus only the smallest useful summary for the main agent.
 
 If you need richer fields, extend the JSON schema in the scripts rather than post-processing ad hoc output in prompts.

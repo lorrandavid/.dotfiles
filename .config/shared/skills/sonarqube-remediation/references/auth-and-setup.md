@@ -2,6 +2,8 @@
 
 Use environment variables only.
 
+Subagents inherit the caller's shell environment. Reference variable names in prompts, never paste secret values into the prompt body.
+
 ## Required variables
 
 ```bash
@@ -47,7 +49,7 @@ Use them as local conveniences only. The bundled scripts remain the stable skill
 ## Safe setup checklist
 
 1. Export env vars in your shell profile or a local secret manager.
-2. Verify access with a read-only request:
+2. Verify access with a read-only request from a narrow fetch subagent:
 
 ```bash
 python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
