@@ -1,11 +1,12 @@
-## Code Quality Standards
+# Code Quality Standards
 
 - **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)
 - **Make illegal states unrepresentable**: Model domain with ADTs/discriminated unions; parse inputs at boundaries into typed structures; if state can't exist, code can't mishandle it
 - **Abstractions**: Consciously constrained, pragmatically parameterised, doggedly documented
 - **NEVER** use any fallback trickery
 
-### **ENTROPY REMINDER**
+## **ENTROPY REMINDER**
+
 This codebase will outlive you. Every shortcut you take becomes
 someone else's burden. Every hack compounds into technical debt
 that slows the whole team down.
@@ -15,7 +16,6 @@ project. The patterns you establish will be copied. The corners
 you cut will be cut again.
 
 **Fight entropy. Leave the codebase better than you found it.**
-
 
 ## Testing
 
@@ -34,7 +34,9 @@ you cut will be cut again.
 ## Specialized Subagents
 
 ### Oracle
+
 Invoke for: code review, architecture decisions, debugging analysis, refactor planning, second opinion.
 
 ### Librarian
+
 Invoke for: understanding 3rd party libraries/packages, exploring remote repositories, discovering open source patterns.

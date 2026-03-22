@@ -1,6 +1,6 @@
 # Shell
 # Invoke-Expression (&starship init powershell)
-&starship init powershell --print-full-init | Out-String | Invoke-Expression
+Invoke-Expression (@(starship init powershell --print-full-init) -join "`n")
 
 # PSReadLine
 Import-Module PSReadLine
