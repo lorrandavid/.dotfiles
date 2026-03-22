@@ -15,6 +15,7 @@ Configs currently managed (folders under `./.config/`):
 - `nvim`
 - `opencode`
 - `powershell` (Windows only — skipped on Linux)
+- `windows-terminal` (Windows scheme snippets — skipped on Linux)
 - `wezterm`
 
 ## Prerequisites
@@ -104,3 +105,4 @@ Clone the repo and run `setup` to install all tools and create symlinks in one s
 
 - On Windows, the `link` command requires Administrator privileges; the script will prompt for elevation automatically.
 - On Linux, symlinks do not require elevated privileges.
+- The `windows-terminal` folder stores reusable scheme JSON snippets for manual import into Windows Terminal's `settings.json`; linking it into `~/.config` or `%USERPROFILE%\.config` does not apply the scheme automatically.

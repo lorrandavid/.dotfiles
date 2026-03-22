@@ -41,7 +41,7 @@ get_config_items() {
     if [[ ! -d "$CONFIG_SOURCE" ]]; then
         return
     fi
-    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' -printf '%f\n' | sort
+    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' ! -iname 'windows-terminal' -printf '%f\n' | sort
 }
 
 get_path_basename() {

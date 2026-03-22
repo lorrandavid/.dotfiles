@@ -1,0 +1,28 @@
+{
+  "$help": "Copy the scheme object from the schemes array into Windows Terminal's settings.json under the top-level schemes array.",
+  "schemes": [
+    {
+      "name": "Shale",
+      "background": "#1c1c1e",
+      "foreground": "#d6e0d8",
+      "cursorColor": "#d6e0d8",
+      "selectionBackground": "#2e3a4a",
+      "black": "#282829",
+      "blue": "#7fb4c9",
+      "cyan": "#9ec4d4",
+      "green": "#6aab78",
+      "purple": "#c97fa0",
+      "red": "#b05e5e",
+      "white": "#8a9e91",
+      "yellow": "#c9a84c",
+      "brightBlack": "#5c7265",
+      "brightBlue": "#9ec4d4",
+      "brightCyan": "#b0c9be",
+      "brightGreen": "#a8c97f",
+      "brightPurple": "#c97fa0",
+      "brightRed": "#cc6666",
+      "brightWhite": "#d6e0d8",
+      "brightYellow": "#d4a96a"
+    }
+  ]
+}
