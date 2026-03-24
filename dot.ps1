@@ -9,9 +9,13 @@
 .PARAMETER Command
     The command to execute: link, unlink, status, doctor, edit, help
 
+.PARAMETER Configs
+    Optional config names to target when using the unlink command.
+
 .EXAMPLE
     .\dot.ps1 link       # Create symlinks for all configs
     .\dot.ps1 unlink     # Remove symlinks and restore backups
+    .\dot.ps1 unlink nvim opencode  # Remove specific symlinks
     .\dot.ps1 status     # Show current link status
     .\dot.ps1 doctor     # Run diagnostics
     .\dot.ps1 edit       # Open dotfiles in editor
@@ -20,7 +24,10 @@
 param(
     [Parameter(Position = 0)]
     [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "setup", "help")]
-    [string]$Command = "help"
+    [string]$Command = "help",
+
+    [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
+    [string[]]$Configs = @()
 )
 
 # Script configuration
@@ -58,6 +65,42 @@ function Get-ConfigItems {
     Get-ChildItem -Path $script:ConfigSource -Directory -Force |
         Where-Object { $_.Name -ine 'powershell' } |
         Select-Object -ExpandProperty Name
+}
+
+function Get-SelectedConfigs {
+    param([string[]]$RequestedConfigs = @())
+
+    $availableConfigs = @(Get-ConfigItems)
+    if ($RequestedConfigs.Count -eq 0) {
+        return $availableConfigs
+    }
+
+    if ($availableConfigs.Count -eq 0) {
+        return @()
+    }
+
+    $availableConfigLookup = @{}
+    foreach ($config in $availableConfigs) {
+        $availableConfigLookup[$config] = $true
+    }
+
+    $selectedConfigs = New-Object System.Collections.Generic.List[string]
+    $seenConfigs = @{}
+
+    foreach ($requestedConfig in $RequestedConfigs) {
+        if (-not $availableConfigLookup.ContainsKey($requestedConfig)) {
+            throw "Unknown config: $requestedConfig. Available configs: $($availableConfigs -join ', ')"
+        }
+
+        if ($seenConfigs.ContainsKey($requestedConfig)) {
+            continue
+        }
+
+        $seenConfigs[$requestedConfig] = $true
+        [void]$selectedConfigs.Add($requestedConfig)
+    }
+
+    return @($selectedConfigs)
 }
 
 function Get-PathBasename {
@@ -316,9 +359,16 @@ function Invoke-Link {
 }
 
 function Invoke-Unlink {
+    param([string[]]$RequestedConfigs = @())
+
     Write-Header "Removing symlinks"
 
-    $configs = Get-ConfigItems
+    $configs = @(Get-SelectedConfigs -RequestedConfigs $RequestedConfigs)
+    if ($configs.Count -eq 0) {
+        Write-Warning "No configs found in $($script:ConfigSource)"
+        return
+    }
+
     $latestBackup = Get-ChildItem -Path $script:BackupDir -Directory -ErrorAction SilentlyContinue |
                     Sort-Object Name -Descending |
                     Select-Object -First 1
@@ -597,11 +647,11 @@ function Show-Help {
   Version: $($script:Version)
 
   USAGE:
-    .\dot.ps1 <command>
+    .\dot.ps1 <command> [config ...]
 
   COMMANDS:
     link      Create symbolic links from .dotfiles to .config
-    unlink    Remove symbolic links and restore backups
+    unlink    Remove symlinks and restore backups (optionally selected configs)
     status    Show current link status for all configs
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
@@ -611,6 +661,8 @@ function Show-Help {
 
   EXAMPLES:
     .\dot.ps1 link       # Link all configs
+    .\dot.ps1 unlink     # Unlink all configs
+    .\dot.ps1 unlink nvim opencode  # Unlink selected configs
     .\dot.ps1 status     # Check what's linked
     .\dot.ps1 doctor     # Run health checks
     .\dot.ps1 setup      # Install tools and link configs
@@ -623,9 +675,13 @@ function Show-Help {
 }
 
 # Main execution
+if ($Configs.Count -gt 0 -and $Command -ne "unlink") {
+    Write-Warning "Ignoring extra arguments; only unlink accepts config names"
+}
+
 switch ($Command) {
     "link"    { Invoke-Link }
-    "unlink"  { Invoke-Unlink }
+    "unlink"  { Invoke-Unlink -RequestedConfigs $Configs }
     "status"  { Invoke-Status }
     "doctor"  { Invoke-Doctor }
     "edit"    { Invoke-Edit }

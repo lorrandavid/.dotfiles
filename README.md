@@ -39,6 +39,7 @@ Configs currently managed (folders under `./.config/`):
 .\dot.ps1 setup     # Install tools and create symlinks (recommended for first run)
 .\dot.ps1 link      # Create symlinks into %USERPROFILE%\.config
 .\dot.ps1 unlink    # Remove symlinks and restore latest backups
+.\dot.ps1 unlink nvim opencode  # Remove only selected configs
 .\dot.ps1 status    # Show status of each config
 .\dot.ps1 doctor    # Run diagnostics
 .\dot.ps1 edit      # Open repo in editor
@@ -52,6 +53,7 @@ Configs currently managed (folders under `./.config/`):
 ./dot.sh setup      # Install tools and create symlinks (recommended for first run)
 ./dot.sh link       # Create symlinks into ~/.config
 ./dot.sh unlink     # Remove symlinks and restore latest backups
+./dot.sh unlink nvim opencode  # Remove only selected configs
 ./dot.sh status     # Show status of each config
 ./dot.sh doctor     # Run diagnostics
 ./dot.sh edit       # Open repo in editor
@@ -74,7 +76,7 @@ Running `install` checks for each tool and installs it if missing:
 - **Source**: `./.config/<config>`
 - **Target**: `~/.config/<config>` (or `%USERPROFILE%\.config\<config>` on Windows)
 - When `link` finds an existing real folder/file at the target (not a symlink), it moves it into `./backups/<timestamp>/` before creating the symlink.
-- `unlink` removes symlinks and restores from the **latest** backup folder if available.
+- `unlink` removes symlinks and restores from the **latest** backup folder if available. You can pass one or more config names to target specific entries only.
 - On Linux, `dot.sh` also ensures `XDG_CONFIG_HOME` is set in `~/.profile`.
 - The `powershell` config folder is skipped on Linux.
 
