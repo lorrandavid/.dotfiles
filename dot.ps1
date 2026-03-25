@@ -56,7 +56,7 @@ function Get-ConfigItems {
         return @()
     }
     Get-ChildItem -Path $script:ConfigSource -Directory -Force |
-        Where-Object { $_.Name -ine 'powershell' } |
+        Where-Object { $_.Name -ine 'powershell' -and $_.Name -ine 'vscode' } |
         Select-Object -ExpandProperty Name
 }
 
@@ -140,6 +140,97 @@ function Test-IsSymlink {
     if (-not (Test-Path $Path)) { return $false }
     $item = Get-Item $Path -Force
     return ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
+}
+
+# VS Code extension linking helpers
+$script:VscodeExtSource = Join-Path $script:ConfigSource "vscode\extensions"
+$script:VscodeExtTarget = Join-Path $env:USERPROFILE ".vscode\extensions"
+
+function Get-VscodeExtensions {
+    if (-not (Test-Path $script:VscodeExtSource)) { return @() }
+    Get-ChildItem -Path $script:VscodeExtSource -Directory -Force |
+        Select-Object -ExpandProperty Name
+}
+
+function Invoke-LinkVscodeExtensions {
+    $extensions = Get-VscodeExtensions
+    if ($extensions.Count -eq 0) { return }
+
+    Write-Header "Linking VS Code extensions"
+
+    if (-not (Test-Path $script:VscodeExtTarget)) {
+        New-Item -ItemType Directory -Path $script:VscodeExtTarget -Force | Out-Null
+    }
+
+    foreach ($ext in $extensions) {
+        $source = Join-Path $script:VscodeExtSource $ext
+        $target = Join-Path $script:VscodeExtTarget $ext
+
+        if (Test-Path -LiteralPath $target) {
+            if (Test-IsSymlink $target) {
+                $existingLink = (Get-Item -LiteralPath $target).Target
+                if ($existingLink -eq $source) {
+                    Write-Success "vscode/$ext already linked correctly"
+                    continue
+                }
+                Remove-Item -LiteralPath $target -Force
+            } else {
+                Write-Warning "vscode/$ext exists and is not a symlink, skipping"
+                continue
+            }
+        }
+
+        try {
+            New-Item -ItemType SymbolicLink -Path $target -Target $source -Force | Out-Null
+            Write-Success "vscode/$ext linked: $target -> $source"
+        } catch {
+            Write-Error "Failed to link vscode/$ext`: $_"
+        }
+    }
+}
+
+function Invoke-UnlinkVscodeExtensions {
+    $extensions = Get-VscodeExtensions
+    if ($extensions.Count -eq 0) { return }
+
+    Write-Header "Removing VS Code extension symlinks"
+
+    foreach ($ext in $extensions) {
+        $target = Join-Path $script:VscodeExtTarget $ext
+
+        if (Test-Path -LiteralPath $target) {
+            if (Test-IsSymlink $target) {
+                Remove-Item -LiteralPath $target -Force
+                Write-Success "Removed symlink: vscode/$ext"
+            } else {
+                Write-Warning "vscode/$ext is not a symlink, skipping"
+            }
+        }
+    }
+}
+
+function Invoke-StatusVscodeExtensions {
+    $extensions = Get-VscodeExtensions
+    if ($extensions.Count -eq 0) { return }
+
+    foreach ($ext in $extensions) {
+        $source = Join-Path $script:VscodeExtSource $ext
+        $target = Join-Path $script:VscodeExtTarget $ext
+
+        $status = if (-not (Test-Path -LiteralPath $target)) {
+            "Not linked"
+        } elseif (Test-IsSymlink $target) {
+            $linkTarget = (Get-Item -LiteralPath $target).Target
+            if ($linkTarget -eq $source) { "Linked" } else { "Wrong target" }
+        } else {
+            "Exists (not symlink)"
+        }
+
+        [PSCustomObject]@{
+            Config = "vscode/$ext"
+            Status = $status
+        }
+    }
 }
 
 function Test-IsAdmin {
@@ -312,6 +403,8 @@ function Invoke-Link {
         }
     }
 
+    Invoke-LinkVscodeExtensions
+
     Write-Header "Linking complete!"
 }
 
@@ -366,6 +459,8 @@ function Invoke-Unlink {
         }
     }
 
+    Invoke-UnlinkVscodeExtensions
+
     Write-Header "Unlink complete!"
 }
 
@@ -418,6 +513,8 @@ function Invoke-Status {
             Status = $status
         }
     }
+
+    $table += Invoke-StatusVscodeExtensions
 
     $table | Format-Table -AutoSize
 }

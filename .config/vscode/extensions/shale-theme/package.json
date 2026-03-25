@@ -1,0 +1,22 @@
+{
+  "name": "shale-theme",
+  "displayName": "Shale",
+  "description": "A clean, dark, pleasant VS Code theme based on shale rocks — ported from smit4k/shale.nvim",
+  "version": "1.0.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Shale",
+        "uiTheme": "vs-dark",
+        "path": "./themes/shale-color-theme.json"
+      }
+    ]
+  }
+}

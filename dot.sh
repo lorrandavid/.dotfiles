@@ -41,7 +41,7 @@ get_config_items() {
     if [[ ! -d "$CONFIG_SOURCE" ]]; then
         return
     fi
-    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' ! -iname 'windows-terminal' -printf '%f\n' | sort
+    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' ! -iname 'windows-terminal' ! -iname 'vscode' -printf '%f\n' | sort
 }
 
 get_path_basename() {
@@ -142,6 +142,108 @@ is_symlink() {
     [[ -L "$1" ]]
 }
 
+# VS Code extension linking helpers
+VSCODE_EXT_SOURCE="$CONFIG_SOURCE/vscode/extensions"
+VSCODE_EXT_TARGET="$HOME/.vscode/extensions"
+
+get_vscode_extensions() {
+    if [[ ! -d "$VSCODE_EXT_SOURCE" ]]; then
+        return
+    fi
+    find "$VSCODE_EXT_SOURCE" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+}
+
+do_link_vscode_extensions() {
+    mapfile -t extensions < <(get_vscode_extensions)
+    if [[ ${#extensions[@]} -eq 0 ]]; then
+        return
+    fi
+
+    write_header "Linking VS Code extensions"
+    mkdir -p "$VSCODE_EXT_TARGET"
+
+    for ext in "${extensions[@]}"; do
+        local source="$VSCODE_EXT_SOURCE/$ext"
+        local target="$VSCODE_EXT_TARGET/$ext"
+
+        if [[ -e "$target" || -L "$target" ]]; then
+            if is_symlink "$target"; then
+                local existing_link
+                existing_link=$(readlink -f "$target")
+                local real_source
+                real_source=$(readlink -f "$source")
+                if [[ "$existing_link" == "$real_source" ]]; then
+                    write_success "vscode/$ext already linked correctly"
+                    continue
+                fi
+                rm -f "$target"
+            else
+                write_warning "vscode/$ext exists and is not a symlink, skipping"
+                continue
+            fi
+        fi
+
+        if ln -s "$source" "$target" 2>/dev/null; then
+            write_success "vscode/$ext linked: $target -> $source"
+        else
+            write_error "Failed to link vscode/$ext"
+        fi
+    done
+}
+
+do_unlink_vscode_extensions() {
+    mapfile -t extensions < <(get_vscode_extensions)
+    if [[ ${#extensions[@]} -eq 0 ]]; then
+        return
+    fi
+
+    write_header "Removing VS Code extension symlinks"
+
+    for ext in "${extensions[@]}"; do
+        local target="$VSCODE_EXT_TARGET/$ext"
+
+        if [[ -e "$target" || -L "$target" ]]; then
+            if is_symlink "$target"; then
+                rm -f "$target"
+                write_success "Removed symlink: vscode/$ext"
+            else
+                write_warning "vscode/$ext is not a symlink, skipping"
+            fi
+        fi
+    done
+}
+
+do_status_vscode_extensions() {
+    mapfile -t extensions < <(get_vscode_extensions)
+    if [[ ${#extensions[@]} -eq 0 ]]; then
+        return
+    fi
+
+    for ext in "${extensions[@]}"; do
+        local source="$VSCODE_EXT_SOURCE/$ext"
+        local target="$VSCODE_EXT_TARGET/$ext"
+        local status
+
+        if [[ ! -e "$target" && ! -L "$target" ]]; then
+            status="Not linked"
+        elif is_symlink "$target"; then
+            local link_target
+            link_target=$(readlink -f "$target")
+            local real_source
+            real_source=$(readlink -f "$source")
+            if [[ "$link_target" == "$real_source" ]]; then
+                status="Linked"
+            else
+                status="Wrong target"
+            fi
+        else
+            status="Exists (not symlink)"
+        fi
+
+        printf "%-30s %s\n" "vscode/$ext" "$status"
+    done
+}
+
 do_link() {
     write_header "Creating symlinks for dotfiles"
     ensure_xdg_config_home
@@ -226,6 +328,8 @@ do_link() {
         fi
     done
 
+    do_link_vscode_extensions
+
     write_header "Linking complete!"
 }
 
@@ -289,6 +393,8 @@ do_unlink() {
         fi
     done
 
+    do_unlink_vscode_extensions
+
     write_header "Unlink complete!"
 }
 
@@ -345,6 +451,9 @@ do_status() {
 
         printf "%-30s %s\n" "$display_name" "$status"
     done
+
+    do_status_vscode_extensions
+
     echo ""
 }
 
