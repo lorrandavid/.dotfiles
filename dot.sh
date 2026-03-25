@@ -8,6 +8,7 @@
 # Usage:
 #   ./dot.sh link       # Create symlinks for all configs
 #   ./dot.sh unlink     # Remove symlinks and restore backups
+#   ./dot.sh unlink nvim opencode  # Remove specific symlinks
 #   ./dot.sh status     # Show current link status
 #   ./dot.sh doctor     # Run diagnostics
 #   ./dot.sh edit       # Open dotfiles in editor
@@ -42,6 +43,54 @@ get_config_items() {
         return
     fi
     find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' ! -iname 'windows-terminal' ! -iname 'vscode' -printf '%f\n' | sort
+}
+
+config_in_list() {
+    local candidate="$1"
+    shift
+
+    local item
+    for item in "$@"; do
+        if [[ "$item" == "$candidate" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+get_selected_configs() {
+    local -a requested_configs=("$@")
+    local -a available_configs
+    mapfile -t available_configs < <(get_config_items)
+
+    if [[ ${#requested_configs[@]} -eq 0 ]]; then
+        if [[ ${#available_configs[@]} -gt 0 ]]; then
+            printf '%s\n' "${available_configs[@]}"
+        fi
+        return 0
+    fi
+
+    if [[ ${#available_configs[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    local -A seen_configs=()
+    local requested_config
+    for requested_config in "${requested_configs[@]}"; do
+        if ! config_in_list "$requested_config" "${available_configs[@]}"; then
+            write_error "Unknown config: $requested_config" >&2
+            write_info "Available configs: ${available_configs[*]}" >&2
+            return 1
+        fi
+
+        if [[ -n "${seen_configs[$requested_config]:-}" ]]; then
+            continue
+        fi
+
+        seen_configs[$requested_config]=1
+        printf '%s\n' "$requested_config"
+    done
 }
 
 get_path_basename() {
@@ -336,7 +385,16 @@ do_link() {
 do_unlink() {
     write_header "Removing symlinks"
 
-    mapfile -t configs < <(get_config_items)
+    local selected_configs=""
+    local -a configs
+    selected_configs=$(get_selected_configs "$@") || return 1
+    if [[ -n "$selected_configs" ]]; then
+        mapfile -t configs <<< "$selected_configs"
+    fi
+    if [[ ${#configs[@]} -eq 0 ]]; then
+        write_warning "No configs found in $CONFIG_SOURCE"
+        return
+    fi
 
     local latest_backup=""
     if [[ -d "$BACKUP_DIR" ]]; then
@@ -660,11 +718,11 @@ show_help() {
   Version: $VERSION
 
   USAGE:
-    ./dot.sh <command>
+    ./dot.sh <command> [config ...]
 
   COMMANDS:
     link      Create symbolic links from .dotfiles to .config
-    unlink    Remove symbolic links and restore backups
+    unlink    Remove symlinks and restore backups (optionally selected configs)
     status    Show current link status for all configs
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
@@ -674,6 +732,8 @@ show_help() {
 
   EXAMPLES:
     ./dot.sh link       # Link all configs
+    ./dot.sh unlink     # Unlink all configs
+    ./dot.sh unlink nvim opencode  # Unlink selected configs
     ./dot.sh status     # Check what's linked
     ./dot.sh doctor     # Run health checks
     ./dot.sh setup      # Install tools and link configs
@@ -683,9 +743,18 @@ EOF
 }
 
 # Main execution
-case "${1:-help}" in
+command="${1:-help}"
+if [[ $# -gt 0 ]]; then
+    shift
+fi
+
+if [[ $# -gt 0 && "$command" != "unlink" ]]; then
+    write_warning "Ignoring extra arguments; only unlink accepts config names"
+fi
+
+case "$command" in
     link)    do_link ;;
-    unlink)  do_unlink ;;
+    unlink)  do_unlink "$@" ;;
     status)  do_status ;;
     doctor)  do_doctor ;;
     edit)    do_edit ;;
@@ -693,7 +762,7 @@ case "${1:-help}" in
     setup)   do_setup ;;
     help)    show_help ;;
     *)
-        write_error "Unknown command: $1"
+        write_error "Unknown command: $command"
         show_help
         exit 1
         ;;
