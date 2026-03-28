@@ -97,6 +97,83 @@ Return:
 Do not expand scope beyond the approved issue set.
 ```
 
+## Duplication subagent template
+
+Use an execution-oriented subagent, preferably a `task` agent, to gather duplication data.
+
+Prompt shape:
+
+```text
+Work in <repo-path>.
+
+Run:
+python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py --project-key <project-key> [--branch <branch>] [--max-files <n>] [--buffer-percent <pct>]
+
+Return:
+- raw compact JSON
+- one-line summary: total LOC, total duplicated lines, effective lines to remove
+- the top 5 files by duplicated line count with their peer components
+
+Important:
+- rely on existing SONARQUBE_URL and SONARQUBE_TOKEN environment variables
+- do not print, copy, or restate secret values
+- if env vars are missing or the helper output looks inconsistent with Sonar data, stop and report that explicitly
+```
+
+## Duplication code-mapping subagent template
+
+After the duplication data is gathered, use an explore-style subagent to map duplication blocks to local code.
+
+Prompt shape:
+
+```text
+Explore the local repo in <repo-path> for the following duplication findings from SonarQube.
+
+For each duplicated file:
+1. Read the duplicated lines in the source file (lines <from_line> to <from_line + size>)
+2. Read the same lines in the peer component
+3. Search the codebase for an existing shared solution (utility, base class, shared module, service) that already handles this logic
+4. Note whether the duplication is in a sensitive area (auth, crypto, migrations, concurrency)
+
+Return for each duplication group:
+- the actual duplicated code snippet (abbreviated if large)
+- the peer component path
+- whether an existing shared solution was found (and where)
+- risk assessment (safe to consolidate, needs caution, do not auto-fix)
+- suggested consolidation approaches if no shared solution exists:
+  a. Extract shared utility/service
+  b. Base class or mixin
+  c. Composition/delegation
+  d. Accept the duplication (if coupling cost outweighs benefit)
+
+Do not propose patches yet. This step is for mapping and approach selection only.
+Always present approach options to the user for decision before proceeding to code changes.
+```
+
+## Duplication remediation subagent template
+
+After the user has chosen a consolidation approach for each duplication group, use a code-changing subagent.
+
+Prompt shape:
+
+```text
+Implement the approved duplication consolidation in <repo-path>.
+
+Inputs:
+- duplication group: <file A lines X-Y> duplicated with <file B lines X-Y>
+- approved approach: <extract shared utility | base class | composition | other>
+- target location for shared code: <path or "create new">
+- validation commands: <build, lint, test commands>
+
+Return:
+- patch summary
+- validation results
+- updated duplication line count estimate
+- any follow-up risks or new duplication introduced
+
+Do not expand scope beyond the approved duplication group.
+```
+
 ## Handoff rules
 
 - Keep Sonar fetching, issue ranking, and repo interpretation as separate concerns.

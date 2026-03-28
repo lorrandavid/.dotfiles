@@ -113,3 +113,95 @@ The scripts return compact JSON so an agent can:
 When using the preferred subagent flow, have the fetch subagent return the raw compact JSON plus only the smallest useful summary for the main agent.
 
 If you need richer fields, extend the JSON schema in the scripts rather than post-processing ad hoc output in prompts.
+
+## Duplication endpoint usage
+
+`sonar_fetch_duplications.py` combines three SonarQube APIs into a single structured output:
+
+1. `/api/measures/component` — project-level `ncloc`, `duplicated_lines`, `duplicated_lines_density`
+2. `/api/measures/component_tree` — per-file metrics sorted by `duplicated_lines` descending
+3. `/api/duplications/show` — block-level detail for each file (which lines, which peer component)
+
+### Parameters
+
+- `--project-key` (required): SonarQube project key
+- `--branch`: branch name
+- `--pull-request`: PR identifier
+- `--buffer-percent` (default: 20): buffer for removal target calculation
+- `--max-files` (default: 10): how many top files to fetch duplication details for
+- `--page-size` (default: 50): page size for component tree queries
+
+### Example
+
+```bash
+python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py \
+  --project-key my-project \
+  --branch main \
+  --max-files 15 \
+  --buffer-percent 25
+```
+
+```powershell
+py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py `
+  --project-key my-project `
+  --branch main `
+  --max-files 15 `
+  --buffer-percent 25
+```
+
+### Output shape
+
+```json
+{
+  "project": { "key": "...", "branch": "..." },
+  "overview": {
+    "total_duplicated_lines": 678,
+    "total_loc": 12345,
+    "current_density_percent": 5.49,
+    "target_density_percent": 2.49,
+    "target_duplicated_lines": 307,
+    "raw_lines_to_remove": 371,
+    "buffer_percent": 20,
+    "effective_lines_to_remove": 446
+  },
+  "files": [
+    {
+      "key": "project:src/foo.ts",
+      "path": "src/foo.ts",
+      "duplicated_lines": 120,
+      "ncloc": 500,
+      "duplications": [
+        {
+          "blocks": [
+            { "component_key": "project:src/foo.ts", "component_name": "foo.ts", "from_line": 10, "size": 30 },
+            { "component_key": "project:src/bar.ts", "component_name": "bar.ts", "from_line": 45, "size": 30 }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Removal target calculation
+
+The `overview.effective_lines_to_remove` includes a buffer that accounts for refactoring
+side effects. When you extract shared code, the new shared module may itself register as
+a small duplication block. The buffer (default 20%) ensures you aim to remove enough
+lines that the net result still meets the target even after new minor duplications appear.
+
+### Raw API parity
+
+Component tree (files sorted by duplicated lines):
+
+```bash
+curl -s -u "$SONARQUBE_TOKEN:" \
+  "$SONARQUBE_URL/api/measures/component_tree?component=my-project&metricKeys=duplicated_lines,ncloc&s=metric&metricSort=duplicated_lines&metricSortFilter=withMeasuresOnly&asc=false&qualifiers=FIL&ps=50"
+```
+
+File duplication blocks:
+
+```bash
+curl -s -u "$SONARQUBE_TOKEN:" \
+  "$SONARQUBE_URL/api/duplications/show?key=project:src/foo.ts"
+```
