@@ -67,6 +67,7 @@ See [subagent-workflow.md](./references/subagent-workflow.md) for concrete promp
 | Narrow issue list for a project, branch, or issue key set | Execution/task subagent | Filtered findings with rule, severity, location, and issue key |
 | Duplication overview and per-file block details | Execution/task subagent | Overview JSON with removal target, per-file duplication blocks, and peer components |
 | Map Sonar paths or rules to local code patterns | Explore subagent | Relevant files, abstractions, and risk notes |
+| Architectural recommendation for duplication consolidation | Oracle subagent | Primary recommendation, effort estimate, trade-off analysis, risk flags |
 | Implement a nontrivial conservative fix | Code-changing subagent | Patch summary, verification steps, and residual risks |
 
 Launch these in parallel when their inputs do not depend on each other.
@@ -147,17 +148,28 @@ Use this workflow when the goal is to reduce duplicated lines in a project.
    - Search the codebase for an existing shared solution (utility, base class, shared module)
    - Note whether the duplication is in a sensitive area (auth, crypto, migrations)
 
-4. **Plan the consolidation.**
+4. **Get an architectural recommendation from the oracle.**
 
-   For each duplication group, decide the approach:
-   - **Existing shared solution found** → refactor both files to use it
-   - **No shared solution exists** → ask the user which approach to use:
-     - Extract a new shared utility/service
-     - Move logic to a base class or mixin
-     - Use composition/delegation
-     - Accept the duplication (if the coupling cost outweighs the benefit)
+   When no existing shared solution is found, spawn an `oracle` subagent with the duplication
+   context (file pairs, line ranges, code snippets, module boundaries). The oracle will:
+   - Recommend the simplest viable consolidation approach with trade-off analysis
+   - Provide effort estimates (S/M/L/XL) for each option
+   - Assess coupling risk and "when to reconsider" triggers
+   - Flag cases where accepting the duplication is the right call
 
-5. **Implement file by file**, starting with the file that has the most duplicated lines. After each file:
+   The oracle is read-only and zero-shot — give it complete context in a single prompt.
+   Its recommendation is advisory; the user makes the final decision.
+
+5. **Present the plan to the user.**
+
+   For each duplication group, present:
+   - The oracle's primary recommendation with rationale
+   - Alternative approaches if trade-offs are materially different
+   - The option to accept the duplication
+
+   The agent **must not** choose a consolidation approach without user approval.
+
+6. **Implement file by file**, starting with the file that has the most duplicated lines. After each file:
    - Run local verification (build, lint, tests)
    - Re-check the duplication count to track progress toward the removal target
 

@@ -150,6 +150,46 @@ Do not propose patches yet. This step is for mapping and approach selection only
 Always present approach options to the user for decision before proceeding to code changes.
 ```
 
+## Duplication oracle subagent template
+
+After code-mapping, use the `oracle` agent to get an architectural recommendation before presenting options to the user. The oracle is zero-shot and read-only — provide complete context in a single prompt.
+
+Prompt shape:
+
+```text
+Analyze these code duplication groups and recommend the simplest consolidation approach for each.
+
+Project: <project-key> in <repo-path>
+Removal target: <effective_lines_to_remove> lines (includes <buffer_percent>% buffer)
+
+Duplication groups:
+
+Group 1:
+- File A: <path> lines <from>-<from+size>
+  ```
+  <duplicated code snippet>
+  ```
+- File B: <path> lines <from>-<from+size>
+  ```
+  <duplicated code snippet>
+  ```
+- Existing shared solution found: <yes/no, details if yes>
+- Sensitive area: <auth/crypto/migrations/none>
+- Module boundaries: <same module | cross-module | cross-package>
+
+[repeat for each group]
+
+For each group, provide:
+1. TL;DR — recommended approach in 1-2 sentences
+2. Effort estimate (S/M/L/XL)
+3. Why this approach over alternatives
+4. Risks and coupling impact
+5. Whether accepting the duplication is the better call
+
+Apply simplicity-first: default to the simplest approach that meets the deduplication goal.
+Flag any groups that should NOT be consolidated (e.g., too risky, intentional duplication, coupling cost too high).
+```
+
 ## Duplication remediation subagent template
 
 After the user has chosen a consolidation approach for each duplication group, use a code-changing subagent.
@@ -178,5 +218,6 @@ Do not expand scope beyond the approved duplication group.
 
 - Keep Sonar fetching, issue ranking, and repo interpretation as separate concerns.
 - Prefer parallel subagents for independent data gathering.
+- Use the oracle for architectural decisions (consolidation approach, trade-off analysis) before presenting options to the user.
 - Keep the main agent responsible for final prioritization, user communication, and stop/go decisions.
 - If any subagent reports a mismatch between helper output and SonarQube, reconcile that before editing code.
