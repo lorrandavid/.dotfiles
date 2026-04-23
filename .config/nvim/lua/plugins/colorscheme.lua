@@ -1,10 +1,13 @@
 return {
   {
-    "smit4k/shale.nvim",
-    lazy = false,
+    "ember-theme/nvim",
+    name = "ember",
     priority = 1000,
     config = function()
-      vim.cmd.colorscheme("shale")
+      require("ember").setup({
+        variant = "ember", -- "ember" | "ember-soft" | "ember-light"
+      })
+      vim.cmd("colorscheme ember")
     end,
   },
 }
