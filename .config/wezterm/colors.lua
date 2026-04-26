@@ -2,6 +2,71 @@ local wezterm = require("wezterm")
 
 local M = {}
 
+-- Based on the default "ember" palette from:
+-- https://github.com/ember-theme/nvim/blob/main/lua/ember/palette.lua
+local ember = {
+	foreground = "#d8d0c0",
+	background = "#1c1b19",
+	cursor_bg = "#e08060",
+	cursor_border = "#e08060",
+	cursor_fg = "#1c1b19",
+	selection_bg = "#3e3c38",
+	selection_fg = "#d8d0c0",
+	scrollbar_thumb = "#585550",
+	split = "#3e3c38",
+	ansi = {
+		"#151412", -- black
+		"#e08060", -- red
+		"#8a9868", -- green
+		"#c09058", -- yellow
+		"#7890a0", -- blue
+		"#988090", -- magenta
+		"#80a090", -- cyan
+		"#b8b0a0", -- white
+	},
+	brights = {
+		"#585550", -- bright black
+		"#b07878", -- bright red
+		"#80a090", -- bright green
+		"#c8b468", -- bright yellow
+		"#7890a0", -- bright blue
+		"#988090", -- bright magenta
+		"#80a090", -- bright cyan
+		"#d8d0c0", -- bright white
+	},
+	indexed = {
+		[16] = "#c8b468", -- extra gold
+		[17] = "#b07878", -- extra rose
+	},
+	tab_bar = {
+		background = "#151412",
+		inactive_tab_edge = "#3e3c38",
+		active_tab = {
+			bg_color = "#3e3c38",
+			fg_color = "#d8d0c0",
+			intensity = "Bold",
+		},
+		inactive_tab = {
+			bg_color = "#252422",
+			fg_color = "#908a7e",
+		},
+		inactive_tab_hover = {
+			bg_color = "#2e2d2a",
+			fg_color = "#d8d0c0",
+			italic = true,
+		},
+		new_tab = {
+			bg_color = "#151412",
+			fg_color = "#908a7e",
+		},
+		new_tab_hover = {
+			bg_color = "#e08060",
+			fg_color = "#1c1b19",
+			italic = true,
+		},
+	},
+}
+
 -- Based on:
 -- https://github.com/BeardedBear/bearded-theme/blob/master/dist/zed/themes/bearded-theme.json
 local arc_blueberry = {
@@ -64,9 +129,10 @@ local github_tuned = {
     },
 }
 
-local selected_scheme = "Github (Tuned)"
+local selected_scheme = "Ember"
 
 M.color_schemes = {
+	["Ember"] = ember,
     ["Bearded Theme Arc Blueberry"] = arc_blueberry,
     ["Github (Tuned)"] = github_tuned,
     ["Github"] = wezterm.get_builtin_color_schemes()["Github"],

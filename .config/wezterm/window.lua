@@ -1,6 +1,8 @@
 local wezterm = require("wezterm")
+local colors = require("colors")
 
 local M = {}
+local active_scheme = colors.color_schemes[colors.color_scheme] or {}
 -- local selected_scheme = "Catppuccin Macchiato"
 -- local scheme = wezterm.get_builtin_color_schemes()[selected_scheme]
 
@@ -72,7 +74,7 @@ wezterm.on("update-right-status", function(window, _)
 	end
 
 	window:set_left_status(wezterm.format({
-		{ Background = { Color = "#BD8183" } },
+		{ Background = { Color = active_scheme.cursor_bg or "#BD8183" } },
 		{ Text = prefix },
 	}))
 end)
