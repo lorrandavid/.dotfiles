@@ -1,11 +1,14 @@
 # Code Quality Standards
 
 - **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)
+- **Use small, direct edits**: Prefer the smallest precise edit that solves the problem. Never use `sed` or ad hoc Python/Node scripts to edit files. Re-read the file, adjust the patch, and retry with the proper editing tools.
 - **Make illegal states unrepresentable**: Model domain with ADTs/discriminated unions; parse inputs at boundaries into typed structures; if state can't exist, code can't mishandle it
-- **Abstractions**: Prefer narrow interfaces over flexible ones. Parameterize only what varies today. Document the *why*, not just the *what*.
+- **Abstractions**: Prefer deep abstractions with small interfaces. Avoid shallow or single-use abstractions. Parameterize only what varies today. Document the *why*, not just the *what*.
+- **Prefer the smallest correct change**: The best changes are often the smallest correct changes.
+- **When multiple approaches are correct, prefer the more minimal one**: Favor fewer new names, helpers, tests, and moving parts.
 - **Never use fallback defaults to mask missing data**: No `?? "unknown"`, no `|| defaultValue` to paper over `undefined` that indicates a bug. If a value can be absent, model it explicitly (e.g., `Option<T>`, nullable field). Fallback values are acceptable only when the fallback is a genuine, documented business default — not a way to silence the type checker.
-- **Never add compatibility layers unless explicitly asked**: e.g. when refactoring, replace the old implementation with the new one. Do not leave the old code intact while adding adapters, wrappers, or shims to keep it working. Deprecation paths are only acceptable when explicitly requested.
-- **Error handling**: Prefer typed error results (`Result<T, E>`, discriminated unions) over thrown exceptions for expected failure modes. Use `try`/`catch` only for truly unexpected errors at system boundaries.
+- **Never add legacy compatibility layers unless explicitly asked**: e.g. when refactoring, replace the old implementation with the new one. Do not leave the old code intact while adding adapters, wrappers, or shims to keep it working. Deprecation paths are only acceptable when explicitly requested.
+- **Error handling**: Prefer typed error results (`Result<T, E>`, discriminated unions) over thrown exceptions for expected failure modes. Do not add speculative `try`/`catch` blocks with fallback behavior. Handle real errors explicitly, and otherwise fail clearly rather than masking problems with fallbacks unless explicitly asked.
 - **If you touch a file, fix any lint or type issues you find in that file.**
 
 ## Testing
@@ -13,14 +16,6 @@
 - Write tests that verify semantically correct behavior
 - **Failing tests are acceptable** when they expose genuine bugs and test correct behavior
 - **Never** test what the type system already guarantees
-
-## Git, Pull Requests, Commits
-
-- **Never** add Claude, GitHub, OpenCode to attribution or as a contributor in PRs, commits, messages, or PR descriptions
-
-## Plans
-
-- At the end of each plan, give me a list of unresolved questions to answer, if any. Make the questions extremely concise. Sacrifice grammar for the sake of concision.
 
 ## Priority Order
 
