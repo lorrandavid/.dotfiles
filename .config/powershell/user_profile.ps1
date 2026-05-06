@@ -25,6 +25,7 @@ function Write-BranchName () {
 function prompt {
     $base = "PS "
     $path = "$($executionContext.SessionState.Path.CurrentLocation)"
+    $terminalCwd = "`e]9;9;`"$path`"$([char]7)"
     $userPrompt = "$('>' * ($nestedPromptLevel + 1)) "
 
     Write-Host "`n$base" -NoNewline
@@ -38,7 +39,7 @@ function prompt {
         Write-Host $path -ForegroundColor "green"
     }
 
-    return $userPrompt
+    return "$terminalCwd$userPrompt"
 }
 
 # PSReadLine
