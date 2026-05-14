@@ -1,10 +1,9 @@
 return {
   {
-    "rose-pine/neovim",
-    name = "rose-pine",
+    "Mofiqul/dracula.nvim",
     priority = 1000,
     config = function()
-      vim.cmd("colorscheme rose-pine")
+      vim.cmd("colorscheme dracula")
     end,
   },
 }
