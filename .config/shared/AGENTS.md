@@ -2,6 +2,8 @@
 
 - **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)
 - **Use small, direct edits**: Prefer the smallest precise edit that solves the problem. Never use `sed` or ad hoc Python/Node scripts to edit files. Re-read the file, adjust the patch, and retry with the proper editing tools.
+- **Never use scripts for file edits or searches**: Do not write or run ad hoc scripts (e.g., Node, Python, shell one-liners) to edit files or search the codebase. Always use the available dedicated editing and search tools.
+- **Prefer `fast-grep` over `Grep`**: When `fast-grep` is available in the current host, use it instead of `Grep` for codebase searches.
 - **Make illegal states unrepresentable**: Model domain with ADTs/discriminated unions; parse inputs at boundaries into typed structures; if state can't exist, code can't mishandle it
 - **Abstractions**: Prefer deep abstractions with small interfaces. Avoid shallow or single-use abstractions. Parameterize only what varies today. Document the *why*, not just the *what*.
 - **Prefer the smallest correct change**: The best changes are often the smallest correct changes.
