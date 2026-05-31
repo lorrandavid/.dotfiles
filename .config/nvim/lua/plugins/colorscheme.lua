@@ -1,9 +1,9 @@
 return {
   {
-    "Mofiqul/dracula.nvim",
+    "vinitkumar/oscura-vim",
     priority = 1000,
     config = function()
-      vim.cmd("colorscheme dracula")
+      vim.cmd("colorscheme oscura-dusk")
     end,
   },
 }
