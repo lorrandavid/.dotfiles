@@ -1,0 +1,7 @@
+{
+  "enabledPlugins": {
+    "plannotator-copilot@plannotator": true
+  },
+  "experimental": true,
+  "model": "auto"
+}
