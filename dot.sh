@@ -23,6 +23,8 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_SOURCE="$DOTFILES_DIR/.config"
 CONFIG_TARGET="${XDG_CONFIG_HOME:-$HOME/.config}"
 BACKUP_DIR="$DOTFILES_DIR/backups"
+SKILLS_TARGET="$CONFIG_SOURCE/shared/skills"
+CAVEMAN_REPO="https://github.com/JuliusBrussee/caveman"
 
 # Colors
 BLUE='\033[0;34m'
@@ -711,6 +713,73 @@ do_setup() {
     write_header "Setup complete!"
 }
 
+do_sync_skills() {
+    write_header "Syncing skills from caveman repository"
+
+    local clone_dir
+    clone_dir="$(mktemp -d)"
+
+    write_info "Cloning caveman repository..."
+    if ! git clone --depth 1 "$CAVEMAN_REPO" "$clone_dir" 2>/dev/null; then
+        write_error "Failed to clone caveman repository"
+        rm -rf "$clone_dir"
+        return 1
+    fi
+
+    mkdir -p "$SKILLS_TARGET"
+
+    local skills_dir="$clone_dir/skills"
+    if [[ ! -d "$skills_dir" ]]; then
+        write_warning "No skills directory found in caveman repository"
+        rm -rf "$clone_dir"
+        return
+    fi
+
+    # Gather skill directories
+    local skills=()
+    local skill_name
+    while IFS= read -r -d '' sk_file; do
+        skill_name="$(basename "$(dirname "$sk_file")")"
+        skills+=("$skill_name")
+    done < <(find "$skills_dir" -name 'SKILL.md' -type f -print0 | sort -z)
+
+    if [[ ${#skills[@]} -eq 0 ]]; then
+        write_warning "No skills found in caveman repository"
+        rm -rf "$clone_dir"
+        return
+    fi
+
+    # Check for overwrites
+    local overwrites=()
+    local s
+    for s in "${skills[@]}"; do
+        if [[ -d "$SKILLS_TARGET/$s" ]]; then
+            overwrites+=("$s")
+        fi
+    done
+
+    if [[ ${#overwrites[@]} -gt 0 ]]; then
+        write_warning "The following existing skills will be OVERWRITTEN:"
+        printf '  - %s\n' "${overwrites[@]}"
+    fi
+
+    # Copy skills
+    local count=0
+    local src
+    for s in "${skills[@]}"; do
+        src="$skills_dir/$s"
+        if [[ -d "$src" ]]; then
+            rm -rf "$SKILLS_TARGET/$s"
+            cp -r "$src" "$SKILLS_TARGET/$s"
+            write_success "Synced skill: $s"
+            count=$((count + 1))
+        fi
+    done
+
+    rm -rf "$clone_dir"
+    write_header "Skills sync complete! $count skills synced."
+}
+
 show_help() {
     cat <<EOF
 
@@ -728,6 +797,7 @@ show_help() {
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
     install   Install required tools (wezterm, nvim, opencode, copilot) via package manager
+    sync-skills  Sync skills from caveman repository to shared/skills
     help      Show this help message
 
   EXAMPLES:
@@ -738,6 +808,7 @@ show_help() {
     ./dot.sh doctor     # Run health checks
     ./dot.sh setup      # Install tools and link configs
     ./dot.sh install    # Install wezterm, nvim, opencode, and copilot
+    ./dot.sh sync-skills  # Sync skills from caveman repository
 
 EOF
 }
@@ -753,14 +824,15 @@ if [[ $# -gt 0 && "$command" != "unlink" ]]; then
 fi
 
 case "$command" in
-    link)    do_link ;;
-    unlink)  do_unlink "$@" ;;
-    status)  do_status ;;
-    doctor)  do_doctor ;;
-    edit)    do_edit ;;
-    install) do_install ;;
-    setup)   do_setup ;;
-    help)    show_help ;;
+    link)        do_link ;;
+    unlink)      do_unlink "$@" ;;
+    status)      do_status ;;
+    doctor)      do_doctor ;;
+    edit)        do_edit ;;
+    install)     do_install ;;
+    setup)       do_setup ;;
+    sync-skills) do_sync_skills ;;
+    help)        show_help ;;
     *)
         write_error "Unknown command: $command"
         show_help
