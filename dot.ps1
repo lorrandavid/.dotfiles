@@ -191,6 +191,10 @@ function Test-IsSymlink {
 $script:VscodeExtSource = Join-Path $script:ConfigSource "vscode\extensions"
 $script:VscodeExtTarget = Join-Path $env:USERPROFILE ".vscode\extensions"
 
+# Zed themes linking helpers
+$script:ZedThemesSource = Join-Path $script:ConfigSource "zed\themes"
+$script:ZedThemesTarget = Join-Path $env:USERPROFILE "AppData\Roaming\Zed\themes"
+
 function Get-VscodeExtensions {
     if (-not (Test-Path $script:VscodeExtSource)) { return @() }
     Get-ChildItem -Path $script:VscodeExtSource -Directory -Force |
@@ -273,6 +277,93 @@ function Invoke-StatusVscodeExtensions {
 
         [PSCustomObject]@{
             Config = "vscode/$ext"
+            Status = $status
+        }
+    }
+}
+
+function Get-ZedThemes {
+    if (-not (Test-Path $script:ZedThemesSource)) { return @() }
+    Get-ChildItem -Path $script:ZedThemesSource -File -Force |
+        Select-Object -ExpandProperty Name
+}
+
+function Invoke-LinkZedThemes {
+    $themes = Get-ZedThemes
+    if ($themes.Count -eq 0) { return }
+
+    Write-Header "Linking Zed themes"
+
+    if (-not (Test-Path $script:ZedThemesTarget)) {
+        New-Item -ItemType Directory -Path $script:ZedThemesTarget -Force | Out-Null
+    }
+
+    foreach ($theme in $themes) {
+        $source = Join-Path $script:ZedThemesSource $theme
+        $target = Join-Path $script:ZedThemesTarget $theme
+
+        if (Test-Path -LiteralPath $target) {
+            if (Test-IsSymlink $target) {
+                $existingLink = (Get-Item -LiteralPath $target).Target
+                if ($existingLink -eq $source) {
+                    Write-Success "zed/themes/$theme already linked correctly"
+                    continue
+                }
+                Remove-Item -LiteralPath $target -Force
+            } else {
+                Write-Warning "zed/themes/$theme exists and is not a symlink, skipping"
+                continue
+            }
+        }
+
+        try {
+            New-Item -ItemType SymbolicLink -Path $target -Target $source -Force | Out-Null
+            Write-Success "zed/themes/$theme linked: $target -> $source"
+        } catch {
+            Write-Error "Failed to link zed/themes/$theme`: $_"
+        }
+    }
+}
+
+function Invoke-UnlinkZedThemes {
+    $themes = Get-ZedThemes
+    if ($themes.Count -eq 0) { return }
+
+    Write-Header "Removing Zed theme symlinks"
+
+    foreach ($theme in $themes) {
+        $target = Join-Path $script:ZedThemesTarget $theme
+
+        if (Test-Path -LiteralPath $target) {
+            if (Test-IsSymlink $target) {
+                Remove-Item -LiteralPath $target -Force
+                Write-Success "Removed symlink: zed/themes/$theme"
+            } else {
+                Write-Warning "zed/themes/$theme is not a symlink, skipping"
+            }
+        }
+    }
+}
+
+function Invoke-StatusZedThemes {
+    $themes = Get-ZedThemes
+    if ($themes.Count -eq 0) { return }
+
+    foreach ($theme in $themes) {
+        $source = Join-Path $script:ZedThemesSource $theme
+        $target = Join-Path $script:ZedThemesTarget $theme
+
+        $status = if (-not (Test-Path -LiteralPath $target)) {
+            "Not linked"
+        } elseif (Test-IsSymlink $target) {
+            $linkTarget = (Get-Item -LiteralPath $target).Target
+            if ($linkTarget -eq $source) { "Linked" } else { "Wrong target" }
+        } else {
+            "Exists (not symlink)"
+        }
+
+        [PSCustomObject]@{
+            Config = "zed/themes/$theme"
             Status = $status
         }
     }
@@ -449,6 +540,7 @@ function Invoke-Link {
     }
 
     Invoke-LinkVscodeExtensions
+    Invoke-LinkZedThemes
 
     Write-Header "Linking complete!"
 }
@@ -512,6 +604,7 @@ function Invoke-Unlink {
     }
 
     Invoke-UnlinkVscodeExtensions
+    Invoke-UnlinkZedThemes
 
     Write-Header "Unlink complete!"
 }
@@ -567,6 +660,7 @@ function Invoke-Status {
     }
 
     $table += Invoke-StatusVscodeExtensions
+    $table += Invoke-StatusZedThemes
 
     $table | Format-Table -AutoSize
 }
