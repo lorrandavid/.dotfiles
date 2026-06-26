@@ -2,6 +2,66 @@ local wezterm = require("wezterm")
 
 local M = {}
 
+local function parse_hex(hex)
+	local r = tonumber(hex:sub(2, 3), 16)
+	local g = tonumber(hex:sub(4, 5), 16)
+	local b = tonumber(hex:sub(6, 7), 16)
+	return r, g, b
+end
+
+local function to_hex(r, g, b)
+	r = math.max(0, math.min(255, math.floor(r + 0.5)))
+	g = math.max(0, math.min(255, math.floor(g + 0.5)))
+	b = math.max(0, math.min(255, math.floor(b + 0.5)))
+	return string.format("#%02x%02x%02x", r, g, b)
+end
+
+local function darken(hex, factor)
+	local r, g, b = parse_hex(hex)
+	return to_hex(r * (1 - factor), g * (1 - factor), b * (1 - factor))
+end
+
+local function lighten(hex, factor)
+	local r, g, b = parse_hex(hex)
+	return to_hex(r + (255 - r) * factor, g + (255 - g) * factor, b + (255 - b) * factor)
+end
+
+local function mix(hex1, hex2, t)
+	local r1, g1, b1 = parse_hex(hex1)
+	local r2, g2, b2 = parse_hex(hex2)
+	return to_hex(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t)
+end
+
+local function derive_tab_bar(s)
+	return {
+		background = darken(s.background, 0.15),
+		inactive_tab_edge = s.selection_bg,
+		active_tab = {
+			bg_color = s.selection_bg,
+			fg_color = s.foreground,
+			intensity = "Bold",
+		},
+		inactive_tab = {
+			bg_color = darken(s.background, 0.05),
+			fg_color = mix(s.foreground, s.background, 0.45),
+		},
+		inactive_tab_hover = {
+			bg_color = lighten(s.background, 0.08),
+			fg_color = s.foreground,
+			italic = true,
+		},
+		new_tab = {
+			bg_color = darken(s.background, 0.15),
+			fg_color = mix(s.foreground, s.background, 0.45),
+		},
+		new_tab_hover = {
+			bg_color = s.brights[5] or s.ansi[5],
+			fg_color = s.foreground,
+			italic = true,
+		},
+	}
+end
+
 -- Based on the default "ember" palette from:
 -- https://github.com/ember-theme/nvim/blob/main/lua/ember/palette.lua
 local ember = {
@@ -37,33 +97,6 @@ local ember = {
 	indexed = {
 		[16] = "#c8b468", -- extra gold
 		[17] = "#b07878", -- extra rose
-	},
-	tab_bar = {
-		background = "#151412",
-		inactive_tab_edge = "#3e3c38",
-		active_tab = {
-			bg_color = "#3e3c38",
-			fg_color = "#d8d0c0",
-			intensity = "Bold",
-		},
-		inactive_tab = {
-			bg_color = "#252422",
-			fg_color = "#908a7e",
-		},
-		inactive_tab_hover = {
-			bg_color = "#2e2d2a",
-			fg_color = "#d8d0c0",
-			italic = true,
-		},
-		new_tab = {
-			bg_color = "#151412",
-			fg_color = "#908a7e",
-		},
-		new_tab_hover = {
-			bg_color = "#e08060",
-			fg_color = "#1c1b19",
-			italic = true,
-		},
 	},
 }
 
@@ -129,9 +162,39 @@ local github_tuned = {
 	},
 }
 
-local selected_scheme = "Tokyo Night Moon"
+local subliminal = {
+	foreground = "#d4d4d4",
+	background = "#282c35",
+	cursor_bg = "#c7c7c7",
+	cursor_fg = "#282c35",
+	selection_bg = "#484e5b",
+	selection_fg = "#d4d4d4",
+	ansi = {
+		"#7f7f7f",
+		"#e15a60",
+		"#a9cfa4",
+		"#ffe2a9",
+		"#6699cc",
+		"#f1a5ab",
+		"#5fb3b3",
+		"#d4d4d4",
+	},
+	brights = {
+		"#7f7f7f",
+		"#e15a60",
+		"#a9cfa4",
+		"#ffe2a9",
+		"#6699cc",
+		"#f1a5ab",
+		"#5fb3b3",
+		"#d4d4d4",
+	},
+}
+
+local selected_scheme = "Subliminal"
 
 M.color_schemes = {
+	["Subliminal"] = subliminal,
 	["Ember"] = ember,
 	["Bearded Theme Arc Blueberry"] = arc_blueberry,
 	["Github (Tuned)"] = github_tuned,
@@ -139,5 +202,12 @@ M.color_schemes = {
 }
 
 M.color_scheme = selected_scheme
+
+local active_scheme = M.color_schemes[selected_scheme]
+if active_scheme then
+	M.colors = {
+		tab_bar = derive_tab_bar(active_scheme),
+	}
+end
 
 return M
