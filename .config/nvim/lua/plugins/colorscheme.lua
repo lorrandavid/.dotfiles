@@ -1,13 +1,14 @@
 return {
   {
-    "catppuccin/nvim",
-    name = "catppuccin",
+    "tjdevries/colorbuddy.nvim",
+    lazy = false,
     priority = 1000,
+  },
+  {
+    "LazyVim/LazyVim",
+    priority = 999,
     config = function()
-      require("catppuccin").setup({
-        flavour = "macchiato",
-      })
-      vim.cmd("colorscheme catppuccin")
+      vim.cmd("colorscheme subliminal_next")
     end,
   },
 }
