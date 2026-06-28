@@ -76,6 +76,11 @@ M.keys = {
 		action = wezterm.action.AdjustPaneSize({ "Up", 5 }),
 	},
 	{
+		mods = "LEADER",
+		key = "z",
+		action = wezterm.action.TogglePaneZoomState,
+	},
+	{
 		mods = 'LEADER',
 		key = 'e',
 		action = wezterm.action.PromptInputLine {
