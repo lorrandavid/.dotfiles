@@ -23,7 +23,7 @@
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "setup", "sync-skills", "help")]
+    [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "setup", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -38,7 +38,6 @@ $script:ConfigTarget = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else {
 $script:BackupDir = Join-Path $DotfilesDir "backups"
 $script:SkillsTarget = Join-Path $ConfigSource "shared\skills"
 $script:CodexSkillsTarget = Join-Path $env:USERPROFILE ".agents\skills"
-$script:CavemanRepo = "https://github.com/JuliusBrussee/caveman"
 
 # Colors for output
 function Write-Header { param($Message) Write-Host "`n==> $Message" -ForegroundColor Blue }
@@ -925,72 +924,6 @@ function Invoke-Setup {
     Write-Header "Setup complete!"
 }
 
-function Invoke-SyncSkills {
-    Write-Header "Syncing skills from caveman repository"
-
-    $cloneDir = Join-Path ([System.IO.Path]::GetTempPath()) "caveman-$(Get-Random)"
-
-    Write-Info "Cloning caveman repository..."
-    try {
-        git clone --depth 1 $script:CavemanRepo $cloneDir 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw "git clone failed" }
-    } catch {
-        Write-Error "Failed to clone caveman repository: $_"
-        if (Test-Path $cloneDir) { Remove-Item -Recurse -Force $cloneDir }
-        return
-    }
-
-    if (-not (Test-Path $script:SkillsTarget)) {
-        New-Item -ItemType Directory -Path $script:SkillsTarget -Force | Out-Null
-    }
-
-    $skillsMap = @{}
-    Get-ChildItem -Path (Join-Path $cloneDir "skills") -Recurse -Filter "SKILL.md" -Force -ErrorAction SilentlyContinue | ForEach-Object {
-        $skillDir = $_.DirectoryName
-        $skillName = Split-Path -Path $skillDir -Leaf
-        $skillsMap[$skillName] = $skillDir
-    }
-
-    if ($skillsMap.Count -eq 0) {
-        Write-Warning "No skills found in caveman repository"
-        Remove-Item -Recurse -Force $cloneDir
-        return
-    }
-
-    $overwrites = @()
-    foreach ($name in $skillsMap.Keys) {
-        $target = Join-Path $script:SkillsTarget $name
-        if (Test-Path -LiteralPath $target) {
-            $overwrites += $name
-        }
-    }
-
-    if ($overwrites.Count -gt 0) {
-        Write-Warning "The following existing skills will be OVERWRITTEN:"
-        foreach ($skill in $overwrites) {
-            Write-Host "  - $skill"
-        }
-    }
-
-    $count = 0
-    foreach ($entry in $skillsMap.GetEnumerator()) {
-        $name = $entry.Key
-        $source = $entry.Value
-        $target = Join-Path $script:SkillsTarget $name
-
-        if (Test-Path -LiteralPath $target) {
-            Remove-Item -Recurse -Force $target
-        }
-
-        Copy-Item -Path $source -Destination $target -Recurse -Force
-        Write-Success "Synced skill: $name"
-        $count++
-    }
-
-    Remove-Item -Recurse -Force $cloneDir
-    Write-Header "Skills sync complete! $count skills synced."
-}
-
 function Show-Help {
     Write-Host @"
 
@@ -1008,7 +941,6 @@ function Show-Help {
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
     install   Install required tools (wezterm, nvim, opencode, copilot) via winget/npm
-    sync-skills  Sync skills from caveman repository to shared/skills
     help      Show this help message
 
   EXAMPLES:
@@ -1019,7 +951,6 @@ function Show-Help {
     .\dot.ps1 doctor     # Run health checks
     .\dot.ps1 setup      # Install tools and link configs
     .\dot.ps1 install    # Install wezterm, nvim, opencode, and copilot
-    .\dot.ps1 sync-skills  # Sync skills from caveman repository
 
   NOTE:
     The 'link' command requires Administrator privileges.
@@ -1040,7 +971,6 @@ switch ($Command) {
     "edit"    { Invoke-Edit }
     "install"     { Invoke-Install }
     "setup"       { Invoke-Setup }
-    "sync-skills" { Invoke-SyncSkills }
     "help"        { Show-Help }
     default   { Show-Help }
 }

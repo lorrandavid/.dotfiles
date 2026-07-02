@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Test-driven development with red-green-refactor loop. Use when user wants to build features or fix bugs using TDD, mentions "red-green-refactor", wants integration tests, or asks for test-first development.
+description: Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions "red-green-refactor", or wants integration tests.
 ---
 
 # Test-Driven Development
@@ -13,7 +13,7 @@ description: Test-driven development with red-green-refactor loop. Use when user
 
 **Bad tests** are coupled to implementation. They mock internal collaborators, test private methods, or verify through external means (like querying a database directly instead of using the interface). The warning sign: your test breaks when you refactor, but behavior hasn't changed. If you rename an internal function and tests fail, those tests were testing implementation, not behavior.
 
-See [tests.md](tests.md) for examples and [MOCKING.md](MOCKING.md) for mocking guidelines.
+See [TESTS.md](TESTS.md) for examples and [MOCKING.md](MOCKING.md) for mocking guidelines.
 
 ## Anti-Pattern: Horizontal Slices
 
@@ -44,14 +44,13 @@ RIGHT (vertical):
 
 ### 1. Planning
 
-When exploring the codebase, use the project's domain glossary so that test names and interface vocabulary match the project's language, and respect ADRs in the area you're touching.
+When exploring the codebase, read `CONTEXT.md` (if it exists) so that test names and interface vocabulary match the project's domain language, and respect ADRs in the area you're touching.
 
 Before writing any code:
 
 - [ ] Confirm with user what interface changes are needed
 - [ ] Confirm with user which behaviors to test (prioritize)
-- [ ] Identify opportunities for [deep modules](DEEP-MODULES.md) (small interface, deep implementation)
-- [ ] Design interfaces for [testability](INTERFACE-DESIGN.md)
+- [ ] Identify opportunities for deep modules (small interface, deep implementation) — see `../coding-standards/SKILL.md` for the design and testability standards
 - [ ] List the behaviors to test (not implementation steps)
 - [ ] Get user approval on the plan
 
@@ -107,3 +106,17 @@ After all tests pass, look for [refactor candidates](REFACTORING.md):
 [ ] Code is minimal for this test
 [ ] No speculative features added
 ```
+
+## Local overrides (dmmulroy/skills)
+
+This skill is vendored from mattpocock/skills. In this repository,
+`../coding-standards/SKILL.md` is the source of truth and **supersedes
+`MOCKING.md`** wherever they disagree:
+
+- Do not use module-patching APIs (`vi.mock`, `jest.mock`) or method-spy APIs
+  (`vi.spyOn`, `jest.spyOn`). Replace behavior through a real seam instead
+  (constructor-injected dependency, Effect service/layer, recording fake adapter,
+  local database, runtime binding).
+- Prefer recording fakes supplied through production seams over mocks, even at
+  system boundaries.
+- Match evidence to risk and use representative databases or runtimes for claims that depend on them.
