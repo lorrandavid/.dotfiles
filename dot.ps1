@@ -37,6 +37,7 @@ $script:ConfigSource = Join-Path $DotfilesDir ".config"
 $script:ConfigTarget = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { Join-Path $env:USERPROFILE ".config" }
 $script:BackupDir = Join-Path $DotfilesDir "backups"
 $script:SkillsTarget = Join-Path $ConfigSource "shared\skills"
+$script:CodexSkillsTarget = Join-Path $env:USERPROFILE ".agents\skills"
 $script:CavemanRepo = "https://github.com/JuliusBrussee/caveman"
 
 # Colors for output
@@ -369,6 +370,94 @@ function Invoke-StatusZedThemes {
     }
 }
 
+function Invoke-LinkCodexSkills {
+    param([string]$BackupPath)
+
+    if (-not (Test-Path -LiteralPath $script:SkillsTarget -PathType Container)) {
+        return
+    }
+
+    Write-Header "Linking Codex skills"
+
+    if (Test-Path -LiteralPath $script:CodexSkillsTarget) {
+        if (Test-IsSymlink $script:CodexSkillsTarget) {
+            $existingLink = (Get-Item -LiteralPath $script:CodexSkillsTarget).Target
+            if ($existingLink -eq $script:SkillsTarget) {
+                Write-Success "agents/skills already linked correctly"
+                return
+            }
+
+            Remove-Item -LiteralPath $script:CodexSkillsTarget -Force
+        }
+        else {
+            if (-not (Test-Path $BackupPath)) {
+                New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
+            }
+
+            $backupTarget = Join-Path $BackupPath "agents-skills"
+            Write-Warning "Backing up existing agents/skills to $backupTarget"
+            Move-Item -LiteralPath $script:CodexSkillsTarget -Destination $backupTarget -Force
+        }
+    }
+
+    try {
+        $targetParent = Split-Path -Parent $script:CodexSkillsTarget
+        if ($targetParent -and -not (Test-Path -LiteralPath $targetParent)) {
+            New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
+        }
+
+        New-Item -ItemType SymbolicLink -Path $script:CodexSkillsTarget -Target $script:SkillsTarget -Force | Out-Null
+        Write-Success "agents/skills linked: $($script:CodexSkillsTarget) -> $($script:SkillsTarget)"
+    }
+    catch {
+        Write-Error "Failed to link agents/skills: $_"
+    }
+}
+
+function Invoke-UnlinkCodexSkills {
+    param($LatestBackup)
+
+    if (-not (Test-Path -LiteralPath $script:CodexSkillsTarget)) {
+        return
+    }
+
+    if (Test-IsSymlink $script:CodexSkillsTarget) {
+        Remove-Item -LiteralPath $script:CodexSkillsTarget -Force
+        Write-Success "Removed symlink: agents/skills"
+
+        if ($LatestBackup) {
+            $backupSource = Join-Path $LatestBackup.FullName "agents-skills"
+            if (Test-Path -LiteralPath $backupSource) {
+                Move-Item -LiteralPath $backupSource -Destination $script:CodexSkillsTarget -Force
+                Write-Info "Restored backup for: agents/skills"
+            }
+        }
+    }
+    else {
+        Write-Warning "agents/skills is not a symlink, skipping"
+    }
+}
+
+function Invoke-StatusCodexSkills {
+    if (-not (Test-Path -LiteralPath $script:SkillsTarget -PathType Container)) {
+        return
+    }
+
+    $status = if (-not (Test-Path -LiteralPath $script:CodexSkillsTarget)) {
+        "Not linked"
+    } elseif (Test-IsSymlink $script:CodexSkillsTarget) {
+        $linkTarget = (Get-Item -LiteralPath $script:CodexSkillsTarget).Target
+        if ($linkTarget -eq $script:SkillsTarget) { "Linked" } else { "Wrong target" }
+    } else {
+        "Exists (not symlink)"
+    }
+
+    [PSCustomObject]@{
+        Config = "agents/skills"
+        Status = $status
+    }
+}
+
 function Test-IsAdmin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
@@ -539,6 +628,7 @@ function Invoke-Link {
         }
     }
 
+    Invoke-LinkCodexSkills -BackupPath $backupPath
     Invoke-LinkVscodeExtensions
     Invoke-LinkZedThemes
 
@@ -603,6 +693,7 @@ function Invoke-Unlink {
         }
     }
 
+    Invoke-UnlinkCodexSkills -LatestBackup $latestBackup
     Invoke-UnlinkVscodeExtensions
     Invoke-UnlinkZedThemes
 
@@ -661,6 +752,7 @@ function Invoke-Status {
 
     $table += Invoke-StatusVscodeExtensions
     $table += Invoke-StatusZedThemes
+    $table += Invoke-StatusCodexSkills
 
     $table | Format-Table -AutoSize
 }

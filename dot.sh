@@ -24,6 +24,7 @@ CONFIG_SOURCE="$DOTFILES_DIR/.config"
 CONFIG_TARGET="${XDG_CONFIG_HOME:-$HOME/.config}"
 BACKUP_DIR="$DOTFILES_DIR/backups"
 SKILLS_TARGET="$CONFIG_SOURCE/shared/skills"
+CODEX_SKILLS_TARGET="$HOME/.agents/skills"
 CAVEMAN_REPO="https://github.com/JuliusBrussee/caveman"
 
 # Colors
@@ -295,6 +296,87 @@ do_status_vscode_extensions() {
     done
 }
 
+do_link_codex_skills() {
+    local backup_path="$1"
+
+    if [[ ! -d "$SKILLS_TARGET" ]]; then
+        return
+    fi
+
+    write_header "Linking Codex skills"
+
+    if [[ -e "$CODEX_SKILLS_TARGET" || -L "$CODEX_SKILLS_TARGET" ]]; then
+        if is_symlink "$CODEX_SKILLS_TARGET"; then
+            local existing_link
+            existing_link=$(readlink -f "$CODEX_SKILLS_TARGET")
+            local real_source
+            real_source=$(readlink -f "$SKILLS_TARGET")
+            if [[ "$existing_link" == "$real_source" ]]; then
+                write_success "agents/skills already linked correctly"
+                return
+            fi
+
+            rm -f "$CODEX_SKILLS_TARGET"
+        else
+            mkdir -p "$backup_path"
+            write_warning "Backing up existing agents/skills to $backup_path/agents-skills"
+            mv "$CODEX_SKILLS_TARGET" "$backup_path/agents-skills"
+        fi
+    fi
+
+    mkdir -p "$(dirname "$CODEX_SKILLS_TARGET")"
+    if ln -s "$SKILLS_TARGET" "$CODEX_SKILLS_TARGET" 2>/dev/null; then
+        write_success "agents/skills linked: $CODEX_SKILLS_TARGET -> $SKILLS_TARGET"
+    else
+        write_error "Failed to link agents/skills"
+    fi
+}
+
+do_unlink_codex_skills() {
+    local latest_backup="$1"
+
+    if [[ ! -e "$CODEX_SKILLS_TARGET" && ! -L "$CODEX_SKILLS_TARGET" ]]; then
+        return
+    fi
+
+    if is_symlink "$CODEX_SKILLS_TARGET"; then
+        rm -f "$CODEX_SKILLS_TARGET"
+        write_success "Removed symlink: agents/skills"
+
+        if [[ -n "$latest_backup" && -e "$latest_backup/agents-skills" ]]; then
+            mv "$latest_backup/agents-skills" "$CODEX_SKILLS_TARGET"
+            write_info "Restored backup for: agents/skills"
+        fi
+    else
+        write_warning "agents/skills is not a symlink, skipping"
+    fi
+}
+
+do_status_codex_skills() {
+    if [[ ! -d "$SKILLS_TARGET" ]]; then
+        return
+    fi
+
+    local status
+    if [[ ! -e "$CODEX_SKILLS_TARGET" && ! -L "$CODEX_SKILLS_TARGET" ]]; then
+        status="Not linked"
+    elif is_symlink "$CODEX_SKILLS_TARGET"; then
+        local link_target
+        link_target=$(readlink -f "$CODEX_SKILLS_TARGET")
+        local real_source
+        real_source=$(readlink -f "$SKILLS_TARGET")
+        if [[ "$link_target" == "$real_source" ]]; then
+            status="Linked"
+        else
+            status="Wrong target"
+        fi
+    else
+        status="Exists (not symlink)"
+    fi
+
+    printf "%-30s %s\n" "agents/skills" "$status"
+}
+
 do_link() {
     write_header "Creating symlinks for dotfiles"
     ensure_xdg_config_home
@@ -379,6 +461,7 @@ do_link() {
         fi
     done
 
+    do_link_codex_skills "$backup_path"
     do_link_vscode_extensions
 
     write_header "Linking complete!"
@@ -453,6 +536,7 @@ do_unlink() {
         fi
     done
 
+    do_unlink_codex_skills "$latest_backup"
     do_unlink_vscode_extensions
 
     write_header "Unlink complete!"
@@ -513,6 +597,7 @@ do_status() {
     done
 
     do_status_vscode_extensions
+    do_status_codex_skills
 
     echo ""
 }
