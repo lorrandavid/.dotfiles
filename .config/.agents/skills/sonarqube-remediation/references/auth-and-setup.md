@@ -52,11 +52,11 @@ Use them as local conveniences only. The bundled scripts remain the stable skill
 2. Verify access with a read-only request from a narrow fetch subagent:
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
 ```
 
 3. If the token expires, rotate it outside the repo and update only your local environment.

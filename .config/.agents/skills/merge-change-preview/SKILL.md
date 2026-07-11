@@ -15,31 +15,31 @@ This workflow computes the simulated merge result tree and diffs that tree again
 ## Quick start
 
 ```bash
-bash .config/shared/skills/merge-change-preview/scripts/preview_merge_changes.sh <target-ref> <source-ref>
+bash .config/.agents/skills/merge-change-preview/scripts/preview_merge_changes.sh <target-ref> <source-ref>
 ```
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .config/shared/skills/merge-change-preview/scripts/preview_merge_changes.ps1 <target-ref> <source-ref>
+powershell -ExecutionPolicy Bypass -File .config/.agents/skills/merge-change-preview/scripts/preview_merge_changes.ps1 <target-ref> <source-ref>
 ```
 
 Example:
 
 ```bash
-bash .config/shared/skills/merge-change-preview/scripts/preview_merge_changes.sh origin/main origin/feature/my-branch
+bash .config/.agents/skills/merge-change-preview/scripts/preview_merge_changes.sh origin/main origin/feature/my-branch
 ```
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .config/shared/skills/merge-change-preview/scripts/preview_merge_changes.ps1 origin/main origin/feature/my-branch
+powershell -ExecutionPolicy Bypass -File .config/.agents/skills/merge-change-preview/scripts/preview_merge_changes.ps1 origin/main origin/feature/my-branch
 ```
 
 To include the full patch:
 
 ```bash
-bash .config/shared/skills/merge-change-preview/scripts/preview_merge_changes.sh origin/main origin/feature/my-branch --patch
+bash .config/.agents/skills/merge-change-preview/scripts/preview_merge_changes.sh origin/main origin/feature/my-branch --patch
 ```
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .config/shared/skills/merge-change-preview/scripts/preview_merge_changes.ps1 origin/main origin/feature/my-branch -Patch
+powershell -ExecutionPolicy Bypass -File .config/.agents/skills/merge-change-preview/scripts/preview_merge_changes.ps1 origin/main origin/feature/my-branch -Patch
 ```
 
 ## What the output means

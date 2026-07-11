@@ -8,7 +8,7 @@
 # Usage:
 #   ./dot.sh link       # Create symlinks for all configs
 #   ./dot.sh unlink     # Remove symlinks and restore backups
-#   ./dot.sh unlink nvim opencode  # Remove specific symlinks
+#   ./dot.sh unlink nvim zed  # Remove specific symlinks
 #   ./dot.sh status     # Show current link status
 #   ./dot.sh doctor     # Run diagnostics
 #   ./dot.sh edit       # Open dotfiles in editor
@@ -23,8 +23,8 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_SOURCE="$DOTFILES_DIR/.config"
 CONFIG_TARGET="${XDG_CONFIG_HOME:-$HOME/.config}"
 BACKUP_DIR="$DOTFILES_DIR/backups"
-SKILLS_TARGET="$CONFIG_SOURCE/shared/skills"
-CODEX_SKILLS_TARGET="$HOME/.agents/skills"
+AGENTS_SOURCE="$CONFIG_SOURCE/.agents"
+AGENTS_TARGET="$HOME/.agents"
 
 # Colors
 BLUE='\033[0;34m'
@@ -44,7 +44,7 @@ get_config_items() {
     if [[ ! -d "$CONFIG_SOURCE" ]]; then
         return
     fi
-    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname 'powershell' ! -iname 'windows-terminal' ! -iname 'vscode' -printf '%f\n' | sort
+    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname '.agents' ! -iname '.copilot' ! -iname 'opencode' ! -iname 'powershell' ! -iname 'shared' ! -iname 'windows-terminal' ! -iname 'vscode' -printf '%f\n' | sort
 }
 
 config_in_list() {
@@ -102,44 +102,21 @@ get_path_basename() {
 
 get_config_display_name() {
     local config="$1"
-
-    if [[ "$config" == ".copilot" ]]; then
-        printf '%s\n' "~/.copilot"
-        return
-    fi
-
     printf '%s\n' "$config"
 }
 
 get_config_target_path() {
     local config="$1"
-
-    if [[ "$config" == ".copilot" ]]; then
-        printf '%s\n' "$HOME/.copilot"
-        return
-    fi
-
     printf '%s\n' "$CONFIG_TARGET/$config"
 }
 
 get_config_backup_name() {
     local config="$1"
-
-    if [[ "$config" == ".copilot" ]]; then
-        printf '%s\n' ".copilot"
-        return
-    fi
-
     printf '%s\n' "$config"
 }
 
 get_config_legacy_target_paths() {
-    local config="$1"
-
-    if [[ "$config" == ".copilot" ]]; then
-        printf '%s\n' "$CONFIG_TARGET/copilot"
-        printf '%s\n' "$CONFIG_TARGET/.copilot"
-    fi
+    return 0
 }
 
 get_config_legacy_backup_name() {
@@ -148,11 +125,6 @@ get_config_legacy_backup_name() {
     local legacy_name
     legacy_name=$(get_path_basename "$legacy_target")
 
-    if [[ "$config" == ".copilot" && "$legacy_name" == ".copilot" ]]; then
-        printf '%s\n' "config-.copilot"
-        return
-    fi
-
     printf '%s\n' "$legacy_name"
 }
 
@@ -160,11 +132,6 @@ get_config_restore_candidates() {
     local config="$1"
 
     printf '%s\n' "$(get_config_backup_name "$config")"
-
-    if [[ "$config" == ".copilot" ]]; then
-        printf '%s\n' "copilot"
-        printf '%s\n' "config-.copilot"
-    fi
 }
 
 ensure_xdg_config_home() {
@@ -298,72 +265,72 @@ do_status_vscode_extensions() {
 do_link_codex_skills() {
     local backup_path="$1"
 
-    if [[ ! -d "$SKILLS_TARGET" ]]; then
+    if [[ ! -d "$AGENTS_SOURCE" ]]; then
         return
     fi
 
     write_header "Linking Codex skills"
 
-    if [[ -e "$CODEX_SKILLS_TARGET" || -L "$CODEX_SKILLS_TARGET" ]]; then
-        if is_symlink "$CODEX_SKILLS_TARGET"; then
+    if [[ -e "$AGENTS_TARGET" || -L "$AGENTS_TARGET" ]]; then
+        if is_symlink "$AGENTS_TARGET"; then
             local existing_link
-            existing_link=$(readlink -f "$CODEX_SKILLS_TARGET")
+            existing_link=$(readlink -f "$AGENTS_TARGET")
             local real_source
-            real_source=$(readlink -f "$SKILLS_TARGET")
+            real_source=$(readlink -f "$AGENTS_SOURCE")
             if [[ "$existing_link" == "$real_source" ]]; then
-                write_success "agents/skills already linked correctly"
+                write_success "agents already linked correctly"
                 return
             fi
 
-            rm -f "$CODEX_SKILLS_TARGET"
+            rm -f "$AGENTS_TARGET"
         else
             mkdir -p "$backup_path"
-            write_warning "Backing up existing agents/skills to $backup_path/agents-skills"
-            mv "$CODEX_SKILLS_TARGET" "$backup_path/agents-skills"
+            write_warning "Backing up existing agents to $backup_path/agents"
+            mv "$AGENTS_TARGET" "$backup_path/agents"
         fi
     fi
 
-    mkdir -p "$(dirname "$CODEX_SKILLS_TARGET")"
-    if ln -s "$SKILLS_TARGET" "$CODEX_SKILLS_TARGET" 2>/dev/null; then
-        write_success "agents/skills linked: $CODEX_SKILLS_TARGET -> $SKILLS_TARGET"
+    mkdir -p "$(dirname "$AGENTS_TARGET")"
+    if ln -s "$AGENTS_SOURCE" "$AGENTS_TARGET" 2>/dev/null; then
+        write_success "agents linked: $AGENTS_TARGET -> $AGENTS_SOURCE"
     else
-        write_error "Failed to link agents/skills"
+        write_error "Failed to link agents"
     fi
 }
 
 do_unlink_codex_skills() {
     local latest_backup="$1"
 
-    if [[ ! -e "$CODEX_SKILLS_TARGET" && ! -L "$CODEX_SKILLS_TARGET" ]]; then
+    if [[ ! -e "$AGENTS_TARGET" && ! -L "$AGENTS_TARGET" ]]; then
         return
     fi
 
-    if is_symlink "$CODEX_SKILLS_TARGET"; then
-        rm -f "$CODEX_SKILLS_TARGET"
-        write_success "Removed symlink: agents/skills"
+    if is_symlink "$AGENTS_TARGET"; then
+        rm -f "$AGENTS_TARGET"
+        write_success "Removed symlink: agents"
 
-        if [[ -n "$latest_backup" && -e "$latest_backup/agents-skills" ]]; then
-            mv "$latest_backup/agents-skills" "$CODEX_SKILLS_TARGET"
-            write_info "Restored backup for: agents/skills"
+        if [[ -n "$latest_backup" && -e "$latest_backup/agents" ]]; then
+            mv "$latest_backup/agents" "$AGENTS_TARGET"
+            write_info "Restored backup for: agents"
         fi
     else
-        write_warning "agents/skills is not a symlink, skipping"
+        write_warning "agents is not a symlink, skipping"
     fi
 }
 
 do_status_codex_skills() {
-    if [[ ! -d "$SKILLS_TARGET" ]]; then
+    if [[ ! -d "$AGENTS_SOURCE" ]]; then
         return
     fi
 
     local status
-    if [[ ! -e "$CODEX_SKILLS_TARGET" && ! -L "$CODEX_SKILLS_TARGET" ]]; then
+    if [[ ! -e "$AGENTS_TARGET" && ! -L "$AGENTS_TARGET" ]]; then
         status="Not linked"
-    elif is_symlink "$CODEX_SKILLS_TARGET"; then
+    elif is_symlink "$AGENTS_TARGET"; then
         local link_target
-        link_target=$(readlink -f "$CODEX_SKILLS_TARGET")
+        link_target=$(readlink -f "$AGENTS_TARGET")
         local real_source
-        real_source=$(readlink -f "$SKILLS_TARGET")
+        real_source=$(readlink -f "$AGENTS_SOURCE")
         if [[ "$link_target" == "$real_source" ]]; then
             status="Linked"
         else
@@ -373,7 +340,7 @@ do_status_codex_skills() {
         status="Exists (not symlink)"
     fi
 
-    printf "%-30s %s\n" "agents/skills" "$status"
+    printf "%-30s %s\n" "agents" "$status"
 }
 
 do_link() {
@@ -640,7 +607,7 @@ do_doctor() {
     fi
 
     # Check common tools
-    for tool in git nvim code opencode copilot; do
+    for tool in git nvim code; do
         if command -v "$tool" &>/dev/null; then
             write_success "$tool is installed"
         else
@@ -752,40 +719,6 @@ do_install() {
         fi
     done
 
-    # Install opencode via official installer if not present
-    write_info "Checking: opencode"
-    if command -v opencode &>/dev/null; then
-        write_success "opencode is already installed"
-    else
-        write_info "Installing opencode..."
-        if curl -fsSL https://opencode.ai/install | bash; then
-            if command -v opencode &>/dev/null; then
-                write_success "opencode installed successfully"
-            else
-                write_warning "opencode installed but not yet on PATH (restart terminal)"
-            fi
-        else
-            write_error "Failed to install opencode"
-        fi
-    fi
-
-    # Install GitHub Copilot CLI via official installer if not present
-    write_info "Checking: copilot (GitHub Copilot CLI)"
-    if command -v copilot &>/dev/null; then
-        write_success "copilot is already installed"
-    else
-        write_info "Installing GitHub Copilot CLI..."
-        if curl -fsSL https://gh.io/copilot-install | bash; then
-            if command -v copilot &>/dev/null; then
-                write_success "copilot installed successfully"
-            else
-                write_warning "copilot installed but not yet on PATH (restart terminal)"
-            fi
-        else
-            write_error "Failed to install GitHub Copilot CLI"
-        fi
-    fi
-
     write_header "Installation complete!"
     write_info "You may need to restart your terminal for PATH changes to take effect."
 }
@@ -813,17 +746,17 @@ show_help() {
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
-    install   Install required tools (wezterm, nvim, opencode, copilot) via package manager
+    install   Install required tools (wezterm, nvim) via package manager
     help      Show this help message
 
   EXAMPLES:
     ./dot.sh link       # Link all configs
     ./dot.sh unlink     # Unlink all configs
-    ./dot.sh unlink nvim opencode  # Unlink selected configs
+    ./dot.sh unlink nvim zed  # Unlink selected configs
     ./dot.sh status     # Check what's linked
     ./dot.sh doctor     # Run health checks
     ./dot.sh setup      # Install tools and link configs
-    ./dot.sh install    # Install wezterm, nvim, opencode, and copilot
+    ./dot.sh install    # Install wezterm and nvim
 
 EOF
 }

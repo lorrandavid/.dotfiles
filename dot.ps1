@@ -15,7 +15,7 @@
 .EXAMPLE
     .\dot.ps1 link       # Create symlinks for all configs
     .\dot.ps1 unlink     # Remove symlinks and restore backups
-    .\dot.ps1 unlink nvim opencode  # Remove specific symlinks
+    .\dot.ps1 unlink nvim zed  # Remove specific symlinks
     .\dot.ps1 status     # Show current link status
     .\dot.ps1 doctor     # Run diagnostics
     .\dot.ps1 edit       # Open dotfiles in editor
@@ -36,8 +36,8 @@ $script:DotfilesDir = $PSScriptRoot
 $script:ConfigSource = Join-Path $DotfilesDir ".config"
 $script:ConfigTarget = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { Join-Path $env:USERPROFILE ".config" }
 $script:BackupDir = Join-Path $DotfilesDir "backups"
-$script:SkillsTarget = Join-Path $ConfigSource "shared\skills"
-$script:CodexSkillsTarget = Join-Path $env:USERPROFILE ".agents\skills"
+$script:AgentsSource = Join-Path $ConfigSource ".agents"
+$script:AgentsTarget = Join-Path $env:USERPROFILE ".agents"
 
 # Colors for output
 function Write-Header { param($Message) Write-Host "`n==> $Message" -ForegroundColor Blue }
@@ -65,7 +65,7 @@ function Get-ConfigItems {
         return @()
     }
     Get-ChildItem -Path $script:ConfigSource -Directory -Force |
-        Where-Object { $_.Name -ine 'powershell' -and $_.Name -ine 'vscode' } |
+        Where-Object { $_.Name -notin @('.agents', '.copilot', 'opencode', 'powershell', 'shared', 'vscode') } |
         Select-Object -ExpandProperty Name
 }
 
@@ -112,44 +112,21 @@ function Get-PathBasename {
 
 function Get-ConfigDisplayName {
     param([string]$Config)
-
-    if ($Config -eq ".copilot") {
-        return "~/.copilot"
-    }
-
     return $Config
 }
 
 function Get-ConfigTargetPath {
     param([string]$Config)
-
-    if ($Config -eq ".copilot") {
-        return Join-Path $env:USERPROFILE ".copilot"
-    }
-
     return Join-Path $script:ConfigTarget $Config
 }
 
 function Get-ConfigBackupName {
     param([string]$Config)
-
-    if ($Config -eq ".copilot") {
-        return ".copilot"
-    }
-
     return $Config
 }
 
 function Get-ConfigLegacyTargetPaths {
     param([string]$Config)
-
-    if ($Config -eq ".copilot") {
-        return @(
-            Join-Path $script:ConfigTarget "copilot",
-            Join-Path $script:ConfigTarget ".copilot"
-        )
-    }
-
     return @()
 }
 
@@ -161,23 +138,13 @@ function Get-ConfigLegacyBackupName {
 
     $legacyName = Get-PathBasename $LegacyTargetPath
 
-    if ($Config -eq ".copilot" -and $legacyName -eq ".copilot") {
-        return "config-.copilot"
-    }
-
     return $legacyName
 }
 
 function Get-ConfigRestoreCandidates {
     param([string]$Config)
 
-    $candidates = @(Get-ConfigBackupName $Config)
-
-    if ($Config -eq ".copilot") {
-        $candidates += @("copilot", "config-.copilot")
-    }
-
-    return $candidates
+    return @(Get-ConfigBackupName $Config)
 }
 
 function Test-IsSymlink {
@@ -369,90 +336,90 @@ function Invoke-StatusZedThemes {
     }
 }
 
-function Invoke-LinkCodexSkills {
+function Invoke-LinkAgents {
     param([string]$BackupPath)
 
-    if (-not (Test-Path -LiteralPath $script:SkillsTarget -PathType Container)) {
+    if (-not (Test-Path -LiteralPath $script:AgentsSource -PathType Container)) {
         return
     }
 
     Write-Header "Linking Codex skills"
 
-    if (Test-Path -LiteralPath $script:CodexSkillsTarget) {
-        if (Test-IsSymlink $script:CodexSkillsTarget) {
-            $existingLink = (Get-Item -LiteralPath $script:CodexSkillsTarget).Target
-            if ($existingLink -eq $script:SkillsTarget) {
-                Write-Success "agents/skills already linked correctly"
+    if (Test-Path -LiteralPath $script:AgentsTarget) {
+        if (Test-IsSymlink $script:AgentsTarget) {
+            $existingLink = (Get-Item -LiteralPath $script:AgentsTarget).Target
+            if ($existingLink -eq $script:AgentsSource) {
+                Write-Success "agents already linked correctly"
                 return
             }
 
-            Remove-Item -LiteralPath $script:CodexSkillsTarget -Force
+            Remove-Item -LiteralPath $script:AgentsTarget -Force
         }
         else {
             if (-not (Test-Path $BackupPath)) {
                 New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
             }
 
-            $backupTarget = Join-Path $BackupPath "agents-skills"
-            Write-Warning "Backing up existing agents/skills to $backupTarget"
-            Move-Item -LiteralPath $script:CodexSkillsTarget -Destination $backupTarget -Force
+            $backupTarget = Join-Path $BackupPath "agents"
+            Write-Warning "Backing up existing agents to $backupTarget"
+            Move-Item -LiteralPath $script:AgentsTarget -Destination $backupTarget -Force
         }
     }
 
     try {
-        $targetParent = Split-Path -Parent $script:CodexSkillsTarget
+        $targetParent = Split-Path -Parent $script:AgentsTarget
         if ($targetParent -and -not (Test-Path -LiteralPath $targetParent)) {
             New-Item -ItemType Directory -Path $targetParent -Force | Out-Null
         }
 
-        New-Item -ItemType SymbolicLink -Path $script:CodexSkillsTarget -Target $script:SkillsTarget -Force | Out-Null
-        Write-Success "agents/skills linked: $($script:CodexSkillsTarget) -> $($script:SkillsTarget)"
+        New-Item -ItemType Junction -Path $script:AgentsTarget -Target $script:AgentsSource -Force | Out-Null
+        Write-Success "agents linked: $($script:AgentsTarget) -> $($script:AgentsSource)"
     }
     catch {
-        Write-Error "Failed to link agents/skills: $_"
+        Write-Error "Failed to link agents: $_"
     }
 }
 
-function Invoke-UnlinkCodexSkills {
+function Invoke-UnlinkAgents {
     param($LatestBackup)
 
-    if (-not (Test-Path -LiteralPath $script:CodexSkillsTarget)) {
+    if (-not (Test-Path -LiteralPath $script:AgentsTarget)) {
         return
     }
 
-    if (Test-IsSymlink $script:CodexSkillsTarget) {
-        Remove-Item -LiteralPath $script:CodexSkillsTarget -Force
-        Write-Success "Removed symlink: agents/skills"
+    if (Test-IsSymlink $script:AgentsTarget) {
+        Remove-Item -LiteralPath $script:AgentsTarget -Force
+        Write-Success "Removed symlink: agents"
 
         if ($LatestBackup) {
-            $backupSource = Join-Path $LatestBackup.FullName "agents-skills"
+            $backupSource = Join-Path $LatestBackup.FullName "agents"
             if (Test-Path -LiteralPath $backupSource) {
-                Move-Item -LiteralPath $backupSource -Destination $script:CodexSkillsTarget -Force
-                Write-Info "Restored backup for: agents/skills"
+                Move-Item -LiteralPath $backupSource -Destination $script:AgentsTarget -Force
+                Write-Info "Restored backup for: agents"
             }
         }
     }
     else {
-        Write-Warning "agents/skills is not a symlink, skipping"
+        Write-Warning "agents is not a symlink, skipping"
     }
 }
 
-function Invoke-StatusCodexSkills {
-    if (-not (Test-Path -LiteralPath $script:SkillsTarget -PathType Container)) {
+function Invoke-StatusAgents {
+    if (-not (Test-Path -LiteralPath $script:AgentsSource -PathType Container)) {
         return
     }
 
-    $status = if (-not (Test-Path -LiteralPath $script:CodexSkillsTarget)) {
+    $status = if (-not (Test-Path -LiteralPath $script:AgentsTarget)) {
         "Not linked"
-    } elseif (Test-IsSymlink $script:CodexSkillsTarget) {
-        $linkTarget = (Get-Item -LiteralPath $script:CodexSkillsTarget).Target
-        if ($linkTarget -eq $script:SkillsTarget) { "Linked" } else { "Wrong target" }
+    } elseif (Test-IsSymlink $script:AgentsTarget) {
+        $linkTarget = (Get-Item -LiteralPath $script:AgentsTarget).Target
+        if ($linkTarget -eq $script:AgentsSource) { "Linked" } else { "Wrong target" }
     } else {
         "Exists (not symlink)"
     }
 
     [PSCustomObject]@{
-        Config = "agents/skills"
+        Config = "agents"
         Status = $status
     }
 }
@@ -461,70 +428,6 @@ function Test-IsAdmin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
     return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-function Convert-SharedSymlinkPlaceholders {
-    $placeholders = @(
-        ".copilot\AGENTS.md",
-        ".copilot\agents",
-        ".copilot\skills",
-        "opencode\AGENTS.md",
-        "opencode\agents",
-        "opencode\skills"
-    )
-
-    foreach ($relativePath in $placeholders) {
-        $path = Join-Path $script:ConfigSource $relativePath
-        if (-not (Test-Path -LiteralPath $path)) { continue }
-
-        $item = Get-Item -LiteralPath $path -Force
-        $isSymlink = ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0
-        $originalContent = $null
-
-        # Determine the link target
-        $linkTarget = $null
-        if ($isSymlink) {
-            $linkTarget = $item.Target
-            if (-not $linkTarget) { continue }
-            # Already a correct directory symlink — skip
-            if ($item.PSIsContainer) { continue }
-        }
-        else {
-            # Skip real directories
-            if ($item.PSIsContainer) { continue }
-            $originalContent = [string](Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue)
-            $linkTarget = $originalContent.Trim()
-            if (-not $linkTarget) { continue }
-            if (-not $linkTarget.StartsWith("../shared/")) { continue }
-        }
-
-        $linkTarget = $linkTarget -replace '/', '\'
-        $parentDir = Split-Path -Parent $path
-
-        # Resolve absolute target to check if it's a directory
-        $absoluteTarget = [System.IO.Path]::GetFullPath((Join-Path $parentDir $linkTarget))
-        $targetIsDir = Test-Path -LiteralPath $absoluteTarget -PathType Container
-
-        try {
-            Remove-Item -LiteralPath $path -Force -ErrorAction Stop
-
-            if ($targetIsDir) {
-                # cmd mklink /D guarantees a directory symlink
-                $output = cmd /c mklink /D "`"$path`"" "`"$linkTarget`"" 2>&1
-                if ($LASTEXITCODE -ne 0) { throw "mklink failed: $output" }
-            }
-            else {
-                New-Item -ItemType SymbolicLink -Path $path -Target $absoluteTarget -Force -ErrorAction Stop | Out-Null
-            }
-            Write-Info "Converted shared link placeholder: $relativePath"
-        }
-        catch {
-            if (-not (Test-Path -LiteralPath $path) -and $originalContent) {
-                Set-Content -LiteralPath $path -Value $originalContent -NoNewline
-            }
-            Write-Warning "Could not convert shared link placeholder: $relativePath - $_"
-        }
-    }
 }
 
 function Invoke-Link {
@@ -546,7 +449,6 @@ function Invoke-Link {
         return
     }
 
-    Convert-SharedSymlinkPlaceholders
 
     $configs = Get-ConfigItems
     if ($configs.Count -eq 0) {
@@ -627,7 +529,7 @@ function Invoke-Link {
         }
     }
 
-    Invoke-LinkCodexSkills -BackupPath $backupPath
+    Invoke-LinkAgents -BackupPath $backupPath
     Invoke-LinkVscodeExtensions
     Invoke-LinkZedThemes
 
@@ -692,7 +594,7 @@ function Invoke-Unlink {
         }
     }
 
-    Invoke-UnlinkCodexSkills -LatestBackup $latestBackup
+    Invoke-UnlinkAgents -LatestBackup $latestBackup
     Invoke-UnlinkVscodeExtensions
     Invoke-UnlinkZedThemes
 
@@ -751,7 +653,7 @@ function Invoke-Status {
 
     $table += Invoke-StatusVscodeExtensions
     $table += Invoke-StatusZedThemes
-    $table += Invoke-StatusCodexSkills
+    $table += Invoke-StatusAgents
 
     $table | Format-Table -AutoSize
 }
@@ -798,7 +700,7 @@ function Invoke-Doctor {
     }
 
     # Check common tools
-    $tools = @("git", "nvim", "code", "opencode", "copilot")
+    $tools = @("git", "nvim", "code")
     foreach ($tool in $tools) {
         if (Get-Command $tool -ErrorAction SilentlyContinue) {
             Write-Success "$tool is installed"
@@ -871,48 +773,6 @@ function Invoke-Install {
         }
     }
 
-    # Install opencode via official PowerShell installer if not present
-    Write-Info "Checking: opencode"
-    if (Get-Command opencode -ErrorAction SilentlyContinue) {
-        Write-Success "opencode is already installed"
-    }
-    else {
-        Write-Info "Installing opencode..."
-        try {
-            Invoke-RestMethod https://opencode.ai/install | Invoke-Expression
-            if (Get-Command opencode -ErrorAction SilentlyContinue) {
-                Write-Success "opencode installed successfully"
-            }
-            else {
-                Write-Warning "opencode installed but not yet on PATH (restart terminal)"
-            }
-        }
-        catch {
-            Write-Error "Failed to install opencode: $_"
-        }
-    }
-
-    # Install GitHub Copilot CLI via winget if not present
-    Write-Info "Checking: copilot (GitHub Copilot CLI)"
-    if (Get-Command copilot -ErrorAction SilentlyContinue) {
-        Write-Success "copilot is already installed"
-    }
-    else {
-        Write-Info "Installing GitHub Copilot CLI via winget..."
-        try {
-            winget install --id GitHub.Copilot --accept-source-agreements --accept-package-agreements --silent
-            if ($LASTEXITCODE -eq 0) {
-                Write-Success "copilot installed successfully"
-            }
-            else {
-                Write-Error "Failed to install GitHub Copilot CLI"
-            }
-        }
-        catch {
-            Write-Error "Failed to install GitHub Copilot CLI: $_"
-        }
-    }
-
     Write-Header "Installation complete!"
     Write-Info "You may need to restart your terminal for PATH changes to take effect."
 }
@@ -940,17 +800,17 @@ function Show-Help {
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
-    install   Install required tools (wezterm, nvim, opencode, copilot) via winget/npm
+    install   Install required tools (wezterm, nvim) via winget
     help      Show this help message
 
   EXAMPLES:
     .\dot.ps1 link       # Link all configs
     .\dot.ps1 unlink     # Unlink all configs
-    .\dot.ps1 unlink nvim opencode  # Unlink selected configs
+    .\dot.ps1 unlink nvim zed  # Unlink selected configs
     .\dot.ps1 status     # Check what's linked
     .\dot.ps1 doctor     # Run health checks
     .\dot.ps1 setup      # Install tools and link configs
-    .\dot.ps1 install    # Install wezterm, nvim, opencode, and copilot
+    .\dot.ps1 install    # Install wezterm and nvim
 
   NOTE:
     The 'link' command requires Administrator privileges.

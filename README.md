@@ -11,12 +11,13 @@ This repo keeps application configs under `./.config/` and provides helper scrip
 
 Configs currently managed (folders under `./.config/`):
 
-- `.copilot`
 - `nvim`
-- `opencode`
 - `powershell` (Windows only — skipped on Linux)
 - `windows-terminal` (Windows scheme snippets — skipped on Linux)
 - `wezterm`
+- `zed`
+
+The `.config/shared` directory is deprecated and retained only for compatibility. The installers intentionally ignore it. Global agent configuration lives under `.config/.agents` and is linked to `~/.agents` separately.
 
 ## Prerequisites
 
@@ -28,7 +29,6 @@ Configs currently managed (folders under `./.config/`):
 **Linux / WSL**
 - Bash
 - One of: `apt`, `dnf`, `pacman`, or `brew`
-- `curl` for installing `opencode` and `copilot`
 
 ## Usage
 
@@ -39,11 +39,11 @@ Configs currently managed (folders under `./.config/`):
 .\dot.ps1 setup     # Install tools and create symlinks (recommended for first run)
 .\dot.ps1 link      # Create symlinks into %USERPROFILE%\.config
 .\dot.ps1 unlink    # Remove symlinks and restore latest backups
-.\dot.ps1 unlink nvim opencode  # Remove only selected configs
+.\dot.ps1 unlink nvim zed  # Remove only selected configs
 .\dot.ps1 status    # Show status of each config
 .\dot.ps1 doctor    # Run diagnostics
 .\dot.ps1 edit      # Open repo in editor
-.\dot.ps1 install   # Install wezterm, nvim, opencode, and copilot
+.\dot.ps1 install   # Install wezterm and nvim
 ```
 
 ### Linux / WSL
@@ -53,11 +53,11 @@ Configs currently managed (folders under `./.config/`):
 ./dot.sh setup      # Install tools and create symlinks (recommended for first run)
 ./dot.sh link       # Create symlinks into ~/.config
 ./dot.sh unlink     # Remove symlinks and restore latest backups
-./dot.sh unlink nvim opencode  # Remove only selected configs
+./dot.sh unlink nvim zed  # Remove only selected configs
 ./dot.sh status     # Show status of each config
 ./dot.sh doctor     # Run diagnostics
 ./dot.sh edit       # Open repo in editor
-./dot.sh install    # Install wezterm, nvim, opencode, and copilot
+./dot.sh install    # Install wezterm and nvim
 ```
 
 ## Install command
@@ -68,8 +68,6 @@ Running `install` checks for each tool and installs it if missing:
 |------|---------|-------------|
 | `wezterm` | `winget install wez.wezterm` | package manager (manual on apt) |
 | `nvim` | `winget install Neovim.Neovim` | package manager |
-| `opencode` | `irm https://opencode.ai/install \| iex` | `curl -fsSL https://opencode.ai/install \| bash` |
-| `copilot` | `winget install GitHub.Copilot` | `curl -fsSL https://gh.io/copilot-install \| bash` |
 
 ## How it works
 

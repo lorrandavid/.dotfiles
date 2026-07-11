@@ -23,7 +23,7 @@ Prompt shape:
 Work in <repo-path>.
 
 Run:
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key> [--branch <branch>] [--pull-request <pr>]
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key> [--branch <branch>] [--pull-request <pr>]
 
 Return:
 - raw compact JSON
@@ -45,7 +45,7 @@ Prompt shape:
 Work in <repo-path>.
 
 Run:
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types <types> --statuses <statuses> [--severities <severities>] [--branch <branch>] [--pull-request <pr>] [--max-pages <n>]
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types <types> --statuses <statuses> [--severities <severities>] [--branch <branch>] [--pull-request <pr>] [--max-pages <n>]
 
 Return:
 - filtered issue list
@@ -107,7 +107,7 @@ Prompt shape:
 Work in <repo-path>.
 
 Run:
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py --project-key <project-key> [--branch <branch>] [--max-files <n>] [--buffer-percent <pct>]
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py --project-key <project-key> [--branch <branch>] [--max-files <n>] [--buffer-percent <pct>]
 
 Return:
 - raw compact JSON

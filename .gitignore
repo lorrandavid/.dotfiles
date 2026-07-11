@@ -1,2 +1,4 @@
 backups
 .opencode/
+.config/.copilot/
+.config/opencode/

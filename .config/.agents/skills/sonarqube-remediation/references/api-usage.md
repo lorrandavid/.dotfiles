@@ -26,13 +26,13 @@ Default metric keys:
 Example:
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py \
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py \
   --project-key my-project \
   --branch main
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py `
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py `
   --project-key my-project `
   --branch main
 ```
@@ -53,7 +53,7 @@ Useful filters:
 Example:
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py \
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py \
   --project-key my-project \
   --types BUG,CODE_SMELL \
   --statuses OPEN,CONFIRMED \
@@ -61,7 +61,7 @@ python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.p
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py `
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py `
   --project-key my-project `
   --types BUG,CODE_SMELL `
   --statuses OPEN,CONFIRMED `
@@ -89,14 +89,14 @@ Use it after:
 Example:
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py \
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py \
   --project-key my-project \
   --branch main \
   --timeout-seconds 900
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py `
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_poll_analysis.py `
   --project-key my-project `
   --branch main `
   --timeout-seconds 900
@@ -134,7 +134,7 @@ If you need richer fields, extend the JSON schema in the scripts rather than pos
 ### Example
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py \
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py \
   --project-key my-project \
   --branch main \
   --max-files 15 \
@@ -142,7 +142,7 @@ python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplicat
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py `
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py `
   --project-key my-project `
   --branch main `
   --max-files 15 `

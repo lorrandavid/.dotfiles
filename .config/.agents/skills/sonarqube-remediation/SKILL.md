@@ -91,31 +91,31 @@ Use these as the exact helper commands passed to the Sonar data-collection subag
 Project summary:
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_summary.py --project-key <project-key>
 ```
 
 Open issues:
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_issues.py --project-key <project-key> --types BUG,CODE_SMELL --statuses OPEN,CONFIRMED --max-pages 2
 ```
 
 Duplication details:
 
 ```bash
-python3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py --project-key <project-key> --max-files 10 --buffer-percent 20
+python3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py --project-key <project-key> --max-files 10 --buffer-percent 20
 ```
 
 ```powershell
-py -3 .config/shared/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py --project-key <project-key> --max-files 10 --buffer-percent 20
+py -3 .config/.agents/skills/sonarqube-remediation/scripts/sonar_fetch_duplications.py --project-key <project-key> --max-files 10 --buffer-percent 20
 ```
 
 If the helper output disagrees with the UI or a manual request, compare against this raw API form:
