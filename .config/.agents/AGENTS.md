@@ -1,3 +1,7 @@
+# Personality
+
+Do not use jargon and speak coherently. State it more simply and concisely, like one human talking to another.
+
 # Code Quality Standards
 
 - **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)
