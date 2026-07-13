@@ -1,0 +1,318 @@
+# Azure DevOps command reference
+
+Use these patterns after the core workflow in `SKILL.md`. Examples are single-line to avoid shell-specific continuation syntax. Replace every placeholder, quote substituted values for the active shell, and retain `--only-show-errors --output json` for data operations.
+
+## Contents
+
+- [Shared inspection](#shared-inspection)
+- [Work items](#work-items)
+- [Work-item relations and PR links](#work-item-relations-and-pr-links)
+- [Pull requests](#pull-requests)
+- [PR reviewers, votes, policies, and conflicts](#pr-reviewers-votes-policies-and-conflicts)
+- [PR comments](#pr-comments)
+- [Sprints and iterations](#sprints-and-iterations)
+- [Structured output patterns](#structured-output-patterns)
+- [Authoritative references](#authoritative-references)
+
+## Shared inspection
+
+Inspect defaults:
+
+```text
+az devops configure --list --output json
+```
+
+Resolve a repository name and ID before commands that require a repository ID:
+
+```text
+az repos show --repository <repo-name-or-id> --project <project> --org <org-url> --query '{id:id,name:name,projectId:project.id,projectName:project.name,webUrl:webUrl}' --only-show-errors --output json
+```
+
+When a PR ID is already available, run `az repos pr show --id <pr-id> --org <org-url>` first and derive `repository.id`, `repository.name`, `repository.project.id`, and `repository.project.name` from its response. Do not ask the user to repeat discoverable scope.
+
+Prefer explicit `--org`, `--project`, and `--repository` in automation prompts even when defaults exist.
+
+## Work items
+
+### Read and query — read-only
+
+Show a work item with relations:
+
+```text
+az boards work-item show --id <work-item-id> --expand relations --org <org-url> --only-show-errors --output json
+```
+
+Query work items with WIQL:
+
+```text
+az boards query --org <org-url> --project <project> --wiql "SELECT [System.Id], [System.Title], [System.State], [System.AssignedTo], [System.IterationPath] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.State] <> 'Closed' ORDER BY [System.ChangedDate] DESC" --only-show-errors --output json
+```
+
+Use `@Me` for the authenticated identity and `@CurrentIteration` only when the team context is unambiguous.
+
+### Create — mutating
+
+Create a work item:
+
+```text
+az boards work-item create --org <org-url> --project <project> --type <work-item-type> --title <title> --description <description> --assigned-to <identity> --area <area-path> --iteration <iteration-path> --fields <field-reference-name>=<value> --only-show-errors --output json
+```
+
+Pass only requested optional fields. Process-specific field reference names vary; inspect an existing item or process metadata rather than guessing.
+
+### Update — mutating
+
+Read the current item, then update only requested fields:
+
+```text
+az boards work-item update --id <work-item-id> --org <org-url> --title <title> --state <state> --assigned-to <identity> --iteration <iteration-path> --fields <field-reference-name>=<value> --only-show-errors --output json
+```
+
+Add a discussion comment:
+
+```text
+az boards work-item update --id <work-item-id> --org <org-url> --discussion <comment> --only-show-errors --output json
+```
+
+Classify discussion updates as `work-item.comment`. Read the item back after creation or update.
+
+## Work-item relations and PR links
+
+### Parent and child links
+
+List relation types supported by the organization before using an unfamiliar relation name:
+
+```text
+az boards work-item relation list-type --org <org-url> --only-show-errors --output json
+```
+
+Add a parent relation to the child item:
+
+```text
+az boards work-item relation add --id <child-id> --relation-type parent --target-id <parent-id> --org <org-url> --only-show-errors --output json
+```
+
+Add one or more child relations to the parent item:
+
+```text
+az boards work-item relation add --id <parent-id> --relation-type child --target-id <child-id-1>,<child-id-2> --org <org-url> --only-show-errors --output json
+```
+
+Inspect friendly relation names:
+
+```text
+az boards work-item relation show --id <work-item-id> --org <org-url> --only-show-errors --output json
+```
+
+Remove a relation only after verifying the direction and target:
+
+```text
+az boards work-item relation remove --id <work-item-id> --relation-type <parent-or-child> --target-id <target-work-item-id> --org <org-url> --yes --only-show-errors --output json
+```
+
+### Related PR links
+
+Use the dedicated PR work-item commands instead of constructing artifact URIs:
+
+```text
+az repos pr work-item list --id <pr-id> --org <org-url> --only-show-errors --output json
+az repos pr work-item add --id <pr-id> --work-items <work-item-id-1> <work-item-id-2> --org <org-url> --only-show-errors --output json
+az repos pr work-item remove --id <pr-id> --work-items <work-item-id-1> <work-item-id-2> --org <org-url> --only-show-errors --output json
+```
+
+Read both the PR and work item first when project or repository scope is uncertain, then verify the linked-work-item list.
+
+## Pull requests
+
+### Read — read-only
+
+List active PRs:
+
+```text
+az repos pr list --repository <repo-name-or-id> --project <project> --org <org-url> --status active --include-links --only-show-errors --output json
+```
+
+Show a PR with merge and conflict fields:
+
+```text
+az repos pr show --id <pr-id> --org <org-url> --query '{id:pullRequestId,title:title,status:status,isDraft:isDraft,mergeStatus:mergeStatus,mergeFailureType:mergeFailureType,mergeFailureMessage:mergeFailureMessage,source:sourceRefName,target:targetRefName,repositoryId:repository.id,repository:repository.name,projectId:repository.project.id,project:repository.project.name,createdBy:createdBy.displayName,creationDate:creationDate}' --only-show-errors --output json
+```
+
+### Create — mutating
+
+Create a PR and link work items in the same operation when possible:
+
+```text
+az repos pr create --repository <repo-name-or-id> --project <project> --org <org-url> --source-branch <source-branch> --target-branch <target-branch> --title <title> --description <description> --work-items <work-item-id-1> <work-item-id-2> --optional-reviewers <identity> --required-reviewers <identity> --only-show-errors --output json
+```
+
+Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
+
+### Update — mutating or high-impact
+
+Update metadata or draft state:
+
+```text
+az repos pr update --id <pr-id> --org <org-url> --title <title> --description <description> --draft <true-or-false> --only-show-errors --output json
+```
+
+Treat `--status completed`, `--status abandoned`, `--bypass-policy true`, `--delete-source-branch true`, and `--transition-work-items true` as high-impact. Read policies and merge status immediately before completing a PR, and read the PR back afterward.
+
+## PR reviewers, votes, policies, and conflicts
+
+### Reviewers
+
+```text
+az repos pr reviewer list --id <pr-id> --org <org-url> --only-show-errors --output json
+az repos pr reviewer add --id <pr-id> --reviewers <identity-1> <identity-2> --required <true-or-false> --org <org-url> --only-show-errors --output json
+az repos pr reviewer remove --id <pr-id> --reviewers <identity-1> <identity-2> --org <org-url> --only-show-errors --output json
+```
+
+Resolve ambiguous display names before mutation. Prefer unique names, email-style identities, or descriptors accepted by the command.
+
+### Votes
+
+```text
+az repos pr set-vote --id <pr-id> --vote <approve|approve-with-suggestions|reject|reset|wait-for-author> --org <org-url> --only-show-errors --output json
+```
+
+Voting is mutating collaboration state. Never infer a vote from a code review; require the user to request the specific vote.
+
+### Policies
+
+List PR policy evaluations:
+
+```text
+az repos pr policy list --id <pr-id> --org <org-url> --only-show-errors --output json
+```
+
+Queue a specific evaluation only when requested:
+
+```text
+az repos pr policy queue --id <pr-id> --evaluation-id <evaluation-id> --org <org-url> --only-show-errors --output json
+```
+
+Use `az repos policy list` for branch-policy configuration; do not confuse configuration with the PR-specific evaluation result.
+
+### Conflict status
+
+Read `mergeStatus`, `mergeFailureType`, and `mergeFailureMessage` from `az repos pr show`:
+
+- `conflicts`: the server detected merge conflicts.
+- `rejectedByPolicy`: policy rejected the merge; this is not a file conflict.
+- `failure`: merge processing failed; report the failure fields.
+- `queued` or `notSet`: status is not final; do not claim the PR is conflict-free.
+- `succeeded`: the server-side merge calculation succeeded, subject to current policy state.
+
+Do not determine ADO conflict status solely from a local `git merge` trial.
+
+## PR comments
+
+The Azure DevOps CLI extension has no first-class PR comment command. Use `az devops invoke` against Git pull-request thread resources.
+
+Resolve the PR's target `repository.id`, then list comment threads — read-only:
+
+```text
+az devops invoke --area git --resource pullRequestThreads --route-parameters project=<project> repositoryId=<repository-id> pullRequestId=<pr-id> --org <org-url> --api-version 7.1 --http-method GET --only-show-errors --output json
+```
+
+To create a top-level PR comment, write this request body to a temporary JSON file:
+
+```json
+{
+  "comments": [
+    {
+      "parentCommentId": 0,
+      "content": "<comment>",
+      "commentType": 1
+    }
+  ],
+  "status": 1
+}
+```
+
+Then run the mutating request:
+
+```text
+az devops invoke --area git --resource pullRequestThreads --route-parameters project=<project> repositoryId=<repository-id> pullRequestId=<pr-id> --org <org-url> --api-version 7.1 --http-method POST --in-file <request.json> --only-show-errors --output json
+```
+
+Use the `pullRequestThreadComments` REST resource to reply to a known thread, supplying `threadId` and a body containing `content`, `parentCommentId`, and `commentType`. For line comments, obtain iteration and change-tracking context first; never guess line positions or iteration IDs.
+
+If resource resolution fails, discover the current route names read-only:
+
+```text
+az devops invoke --query "[?area=='git']" --only-show-errors --output json
+```
+
+## Sprints and iterations
+
+### Project iterations — read-only
+
+List the project iteration tree:
+
+```text
+az boards iteration project list --project <project> --org <org-url> --depth <depth> --only-show-errors --output json
+```
+
+Show an iteration by identifier:
+
+```text
+az boards iteration project show --id <iteration-id> --project <project> --org <org-url> --only-show-errors --output json
+```
+
+### Team sprint queries — read-only
+
+List the current team iteration:
+
+```text
+az boards iteration team list --team <team-name-or-id> --project <project> --org <org-url> --timeframe Current --only-show-errors --output json
+```
+
+List work items in an iteration:
+
+```text
+az boards iteration team list-work-items --id <iteration-id> --team <team-name-or-id> --project <project> --org <org-url> --only-show-errors --output json
+```
+
+Show configured backlog and default iterations:
+
+```text
+az boards iteration team show-backlog-iteration --team <team-name-or-id> --project <project> --org <org-url> --only-show-errors --output json
+az boards iteration team show-default-iteration --team <team-name-or-id> --project <project> --org <org-url> --only-show-errors --output json
+```
+
+Team iteration add/remove and default/backlog setters are mutating. Project iteration create/update/delete is outside a query request and requires explicit scope; deletion is high-impact.
+
+## Structured output patterns
+
+Use JMESPath to normalize server output before wrapping it in the core output envelope.
+
+Work item:
+
+```text
+--query '{id:id,title:fields."System.Title",state:fields."System.State",assignedTo:fields."System.AssignedTo".displayName,iterationPath:fields."System.IterationPath",revision:rev}'
+```
+
+PR summary:
+
+```text
+--query '{id:pullRequestId,title:title,status:status,isDraft:isDraft,mergeStatus:mergeStatus,source:sourceRefName,target:targetRefName,repository:repository.name,project:repository.project.name}'
+```
+
+PR list:
+
+```text
+--query '[].{id:pullRequestId,title:title,status:status,isDraft:isDraft,creator:createdBy.displayName,source:sourceRefName,target:targetRefName,repository:repository.name}'
+```
+
+Do not rely on display-formatted `table` output for automation or parsing. Preserve the unfiltered JSON when the observed schema differs from the expected shape.
+
+## Authoritative references
+
+- [Azure CLI: work items](https://learn.microsoft.com/en-us/cli/azure/boards/work-item?view=azure-cli-latest)
+- [Azure CLI: work-item relations](https://learn.microsoft.com/en-us/cli/azure/boards/work-item/relation?view=azure-cli-latest)
+- [Azure CLI: pull requests](https://learn.microsoft.com/en-us/cli/azure/repos/pr?view=azure-cli-latest)
+- [Azure CLI: project iterations](https://learn.microsoft.com/en-us/cli/azure/boards/iteration/project?view=azure-cli-latest) and [team iterations](https://learn.microsoft.com/en-us/cli/azure/boards/iteration/team?view=azure-cli-latest)
+- [Azure CLI: `az devops invoke`](https://learn.microsoft.com/en-us/cli/azure/devops?view=azure-cli-latest#az-devops-invoke)
+- [Azure DevOps REST 7.1: pull-request threads](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads?view=azure-devops-rest-7.1)

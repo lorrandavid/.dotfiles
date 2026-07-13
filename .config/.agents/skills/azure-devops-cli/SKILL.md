@@ -1,91 +1,119 @@
 ---
 name: azure-devops-cli
-description: Use Azure DevOps CLI for ADO work items, backlog filtering, and pull requests.
-argument-hint: "[ado request]"
+description: Operate Azure DevOps through the Azure CLI for Boards work items and relations, backlog and sprint queries, Repos pull requests, reviewers, comments, policies, votes, conflict status, and work-item links. Use for read-only ADO inspection or explicitly requested mutations such as creating or updating work items and PRs.
 ---
 
-Use this skill whenever the user asks for Azure DevOps (ADO) operations like Boards, Work Items, Backlog filtering, Repositories, or Repos Pull Requests.
+# Azure DevOps CLI
 
-## Rules
+Prefer `az boards`, `az repos`, and `az devops` over manual web instructions. Use `az devops invoke` only when the extension has no first-class command, notably for pull-request comment threads.
 
-- Prefer Azure DevOps CLI commands (`az boards`, `az repos`, `az devops`) over manual or web instructions.
-- Never invent ADO data. Always return command-backed results.
-- If required inputs are missing (organization, project, repo, work item IDs), gather them before running mutating commands.
+Read [references/commands.md](references/commands.md) before executing an ADO operation.
+
+## Operating contract
+
+- Return command-backed data only; never invent ADO state, identities, IDs, links, policies, or permissions.
+- Resolve organization, project, repository, team, and resource IDs before mutation. Read current state first when it affects the change.
+- Derive project, repository, and related scope from supplied work-item or PR IDs when ADO can return it; ask only for values that cannot be discovered safely.
+- Prefer names for user-facing output and IDs for commands and joins.
+- Add `--only-show-errors --output json` to data commands unless the user explicitly requests a table.
+- Use JMESPath `--query` only to reduce or normalize output; do not discard fields needed to verify a mutation.
+- Never expose PATs, authorization headers, environment variables, or credential-store contents.
+- Do not use `--open` in unattended work or when a URL is sufficient.
+
+## Classify every operation
+
+State the classification internally before running commands and include it in structured results.
+
+### Read-only
+
+Commands that only inspect state: `show`, `list`, `query`, `relation show`, `relation list-type`, PR reviewer/work-item/policy lists, iteration queries, `az devops configure --list`, and GET requests through `az devops invoke`.
+
+Run read-only commands without confirmation when their scope is clear.
+
+### Mutating
+
+Commands that create or change recoverable collaboration state: create/update work items or PRs, add discussions or PR comments, add/remove relations or linked work items, add/remove reviewers, set/reset votes, queue policy evaluation, and update iteration/team configuration.
+
+Before mutation:
+
+1. Require exact target scope and requested change.
+2. Read the target when its current state or revision matters.
+3. Summarize the intended mutation and affected IDs.
+4. Execute without redundant confirmation when the user already requested that exact mutation; otherwise ask.
+5. Read back the result and report the final server state.
+
+### High-impact
+
+Treat PR completion/abandonment, policy bypass, source-branch deletion, work-item deletion, permanent destruction, and bulk mutations as high-impact. Require explicit authorization naming the action and target. Never infer these actions from “finish,” “clean up,” or similar wording.
 
 ## Prerequisites
 
-1. Ensure Azure DevOps extension is installed:
-   ```bash
-   az extension add --name azure-devops
-   ```
-2. Ensure defaults are configured when possible:
-   ```bash
-   az devops configure --defaults organization=<https://dev.azure.com/org> project=<project>
-   ```
-3. Ensure user is authenticated (`az login`) and, when needed, logged into ADO:
-   ```bash
-   az devops login --organization <https://dev.azure.com/org>
-   ```
+Check the extension, defaults, and authentication before ADO work:
+
+```text
+az extension show --name azure-devops --output json
+az devops configure --list --output json
+```
+
+Install the extension only when missing and with user approval if installation is outside the current environment:
+
+```text
+az extension add --name azure-devops
+```
+
+Configure defaults when stable for the repository:
+
+```text
+az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>
+```
+
+Use the existing `az login` session or `az devops login --organization <org-url>` as appropriate. Do not request a PAT in chat; direct the user to authenticate through a secure interactive mechanism.
 
 ## Workflow
 
-1. Classify request into one of: work item read/query, backlog filtering, PR operations.
-2. Confirm current defaults before executing:
-   ```bash
-   az devops configure --list
-   ```
-3. Run the matching command set.
-4. Return concise results (IDs, titles, states, links when available) and next-step options.
+1. Classify the request as work item, relation/link, PR, PR comment, policy/reviewer/vote, or sprint/iteration.
+2. Classify it as read-only, mutating, or high-impact.
+3. Resolve and verify defaults plus missing organization/project/repository/team/resource identifiers.
+4. Read current state when needed, then run the narrowest command from the command reference.
+5. For mutation, read back the affected resource and compare the requested fields or links.
+6. Return concise human output plus normalized JSON when requested or when another tool will consume the result.
 
-## Command Patterns
+## Output contract
 
-### Get work item or user story by ID
+Prefer portal URLs over REST URLs in user-facing output. If Azure returns `_links.web.href` or another explicit portal URL, use it. Otherwise synthesize:
 
-```bash
-az boards work-item show --id <work_item_id> --output json
+- Work item: `<org-url>/<encoded-project>/_workitems/edit/<work-item-id>`
+- Pull request: `<org-url>/<encoded-project>/_git/<encoded-repository>/pullrequest/<pr-id>`
+
+Remove a trailing slash from `<org-url>` and percent-encode each path segment. Do not synthesize sprint URLs; return a portal link only when ADO provides one.
+
+For machine-readable output, normalize to this envelope while preserving the raw command result when fields are uncertain:
+
+```json
+{
+  "operation": "work-item.show",
+  "classification": "read-only",
+  "organization": "https://dev.azure.com/example",
+  "project": "Example Project",
+  "repository": null,
+  "count": 1,
+  "results": [
+    {
+      "id": 123,
+      "title": "Example",
+      "state": "Active",
+      "url": "https://dev.azure.com/example/Example%20Project/_workitems/edit/123"
+    }
+  ]
+}
 ```
 
-### Query user stories / work items (WIQL)
+Use stable operation names such as `work-item.create`, `work-item.update`, `work-item.comment`, `work-item.link`, `pr.show`, `pr.update`, `pr.comment`, `pr.vote`, `pr.policy.list`, and `iteration.current`.
 
-```bash
-az boards query --wiql "SELECT [System.Id], [System.Title], [System.State]
-FROM WorkItems
-WHERE [System.TeamProject] = @project
-  AND [System.WorkItemType] IN ('User Story','Task','Bug')
-ORDER BY [System.ChangedDate] DESC" --output table
-```
+## Error handling
 
-### Filter backlog (example: active items assigned to me)
-
-```bash
-az boards query --wiql "SELECT [System.Id], [System.Title], [System.State], [System.AssignedTo]
-FROM WorkItems
-WHERE [System.TeamProject] = @project
-  AND [System.WorkItemType] IN ('User Story','Task','Bug')
-  AND [System.State] <> 'Closed'
-  AND [System.AssignedTo] = @Me
-ORDER BY [System.ChangedDate] DESC" --output table
-```
-
-### Create pull request
-
-```bash
-az repos pr create \
-  --repository <repo_name_or_id> \
-  --source-branch <source_branch> \
-  --target-branch <target_branch> \
-  --title "<title>" \
-  --description "<description>"
-```
-
-### List pull requests
-
-```bash
-az repos pr list --repository <repo_name_or_id> --status active --output table
-```
-
-## Error Handling
-
-- If a command fails, report the exact CLI error and identify the missing parameter or permission.
-- For create/update commands, confirm scope (project/repo/branch) before execution.
-- Prefer read-only commands first when context is uncertain.
+- Report the exact CLI or REST error and command category without exposing secrets.
+- Distinguish missing parameters, authentication, authorization, validation rules, revision conflicts, and unsupported commands.
+- On mutation failure, read the resource before retrying; the first request may have partially succeeded.
+- Do not retry non-idempotent mutations blindly.
+- If `az devops invoke` cannot resolve an area/resource, discover available resources with a read-only `az devops invoke` query before changing the route.
