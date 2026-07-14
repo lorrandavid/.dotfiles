@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan ADO Requirement"
+  short_description: "Turn an ADO requirement into ready Tasks"
+  default_prompt: "Use $ado-plan-requirement to clarify an Azure DevOps requirement and publish an agent-ready Task graph."
