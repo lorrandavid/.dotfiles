@@ -1,6 +1,6 @@
 ---
 name: azure-devops-cli
-description: Operate Azure DevOps through the Azure CLI for Boards work items and relations, backlog and sprint queries, Repos pull requests, reviewers, comments, policies, votes, conflict status, and work-item links. Use for read-only ADO inspection or explicitly requested mutations such as creating or updating work items and PRs.
+description: Operate Azure DevOps through the Azure CLI for Boards work items, requirement history, comments, revisions, attachments, relations, backlog and sprint queries, and Repos pull requests, reviewers, policies, votes, conflict status, and work-item links. Use for read-only ADO inspection or explicitly requested mutations such as creating or updating work items and PRs.
 ---
 
 # Azure DevOps CLI
@@ -17,6 +17,8 @@ Read [references/commands.md](references/commands.md) before executing an ADO op
 - Prefer names for user-facing output and IDs for commands and joins.
 - Add `--only-show-errors --output json` to data commands unless the user explicitly requests a table.
 - Use JMESPath `--query` only to reduce or normalize output; do not discard fields needed to verify a mutation.
+- Follow every pagination mechanism until complete unless the user requests a limit. Report page counts, completion, and any continuation token or offset when output is truncated.
+- Treat the comments API as the authoritative work-item discussion history. `System.History`, revisions, and update deltas complement comments but do not replace them.
 - Never expose PATs, authorization headers, environment variables, or credential-store contents.
 - Do not use `--open` in unattended work or when a URL is sufficient.
 
@@ -26,9 +28,11 @@ State the classification internally before running commands and include it in st
 
 ### Read-only
 
-Commands that only inspect state: `show`, `list`, `query`, `relation show`, `relation list-type`, PR reviewer/work-item/policy lists, iteration queries, `az devops configure --list`, and GET requests through `az devops invoke`.
+Commands that only inspect state: `show`, `list`, `query`, `relation show`, `relation list-type`, work-item comments/revisions/updates/attachment metadata, PR reviewer/work-item/policy lists, iteration queries, `az devops configure --list`, and GET requests through `az devops invoke`.
 
 Run read-only commands without confirmation when their scope is clear.
+
+Attachment download is read-only in ADO but writes a local artifact. Download only when requested or required for the task, use an explicit workspace destination, report that path, and never execute downloaded content automatically.
 
 ### Mutating
 
@@ -71,7 +75,7 @@ Use the existing `az login` session or `az devops login --organization <org-url>
 
 ## Workflow
 
-1. Classify the request as work item, relation/link, PR, PR comment, policy/reviewer/vote, or sprint/iteration.
+1. Classify the request as work item, requirement history/attachment, relation/link, PR, PR comment, policy/reviewer/vote, or sprint/iteration.
 2. Classify it as read-only, mutating, or high-impact.
 3. Resolve and verify defaults plus missing organization/project/repository/team/resource identifiers.
 4. Read current state when needed, then run the narrowest command from the command reference.
@@ -108,7 +112,22 @@ For machine-readable output, normalize to this envelope while preserving the raw
 }
 ```
 
-Use stable operation names such as `work-item.create`, `work-item.update`, `work-item.comment`, `work-item.link`, `pr.show`, `pr.update`, `pr.comment`, `pr.vote`, `pr.policy.list`, and `iteration.current`.
+Use stable operation names such as `work-item.create`, `work-item.update`, `work-item.comment`, `work-item.comments.list`, `work-item.revisions.list`, `work-item.updates.list`, `work-item.attachments.list`, `work-item.attachment.download`, `requirement.snapshot`, `work-item.link`, `pr.show`, `pr.update`, `pr.comment`, `pr.vote`, `pr.policy.list`, and `iteration.current`.
+
+For paged operations, add a sibling `pagination` object per collection:
+
+```json
+{
+  "complete": true,
+  "pagesFetched": 3,
+  "itemsFetched": 247,
+  "continuationToken": null,
+  "nextOffset": null,
+  "limitRequested": null
+}
+```
+
+Set `complete` to `false` when a requested limit, error, or interrupted fetch leaves more server data available. Never label a first page as a complete history.
 
 ## Error handling
 
