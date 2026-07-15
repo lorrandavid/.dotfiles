@@ -16,7 +16,37 @@
   ],
   "review": {
     "standards": [],
-    "spec": []
+    "spec": [],
+    "cdd": {
+      "verdict": "pass-with-concerns",
+      "readerTasks": [
+        "Change the primary rule introduced by this Task",
+        "Diagnose the most important failure mode"
+      ],
+      "metrics": { "source": "qualitative", "tool": null },
+      "attempts": [
+        {
+          "round": 0,
+          "verdict": "revise",
+          "introducedHighFindings": 1
+        },
+        {
+          "round": 1,
+          "verdict": "pass-with-concerns",
+          "introducedHighFindings": 0
+        }
+      ],
+      "findings": [
+        {
+          "severity": "medium",
+          "status": "unresolved-explained",
+          "location": "<path:line or bounded cross-file path>",
+          "summary": "<concise cognitive-load concern>"
+        }
+      ],
+      "preExistingFindings": [],
+      "remediationRounds": 1
+    }
   },
   "unresolved": []
 }
@@ -49,6 +79,13 @@ Use the Conventional Commit subject as the PR title: `<type>(#<task-id>): <brief
 
 1. <First behavior or module to inspect>
 2. <Second behavior or integration point>
+
+## Cognitive-load review
+
+- Verdict: <Pass or Pass with concerns>
+- Reader tasks: <maintenance tasks used by the CDD review>
+- Metrics: <configured analyzer and scope, or “Qualitative; no configured analyzer”>
+- Unresolved concerns: <explicit concerns or “None”>
 
 ## Validation
 
@@ -102,6 +139,10 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
         "typecheck": "passed",
         "standardsReviewFindings": 0,
         "specReviewFindings": 0,
+        "cddVerdict": "pass-with-concerns",
+        "cddHighFindings": 0,
+        "cddUnresolvedFindings": 1,
+        "cddRemediationRounds": 1,
         "deslopComplete": true
       },
       "pullRequest": {
