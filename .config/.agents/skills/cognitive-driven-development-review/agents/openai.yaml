@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cognitive-Driven Development Review"
+  short_description: "Review code for cognitive load and clarity"
+  default_prompt: "Use $cognitive-driven-development-review to review the current changes for cognitive load and cognitive complexity."
