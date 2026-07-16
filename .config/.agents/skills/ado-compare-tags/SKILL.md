@@ -21,17 +21,22 @@ Accept HTTPS or SSH Azure Repos URLs. Ask only for a missing value; do not ask f
 
 ## Run the comparison
 
-1. Verify that `git`, Azure CLI, and the `azure-devops` CLI extension are available. Use the current authenticated session. Never request or expose a PAT.
-2. Run:
+1. Verify that Python 3.10 or newer, `git`, Azure CLI, and the `azure-devops` CLI extension are available. Use the current authenticated session. Never request or expose a PAT.
+2. Select the platform's Python launcher without editing the script:
+
+   - On Windows, prefer `py -3`; fall back to `python`.
+   - On macOS or Linux, prefer `python3`; fall back to `python` only when it is Python 3.10 or newer.
+
+3. Run the selected launcher with these three positional arguments:
 
    ```text
-   python <skill-directory>/scripts/compare_ado_tags.py <repository-url> <base-tag> <target-tag>
+   <python-launcher> <skill-directory>/scripts/compare_ado_tags.py <repository-url> <base-tag> <target-tag>
    ```
 
-3. Capture stdout as JSON. Leave stderr visible for progress and diagnostics.
-4. If authentication is missing, direct the user to authenticate securely and rerun. Installing the Azure DevOps extension requires the user's approval when it changes their environment.
+4. Build the invocation with native argument handling. Do not use Unix-only shell syntax, `/tmp`, or hard-coded path separators. Capture stdout as JSON and leave stderr visible for progress and diagnostics.
+5. If authentication is missing, direct the user to authenticate securely and rerun. Installing the Azure DevOps extension requires the user's approval when it changes their environment.
 
-The script fetches only the two tags, computes both commit-set differences, resolves PRs through Azure DevOps's `lastMergeCommit` query, obtains directly linked work items, follows parent hierarchy links, and deduplicates all entities. Do not replace it with PR-title parsing or commit-message heuristics.
+The script resolves the installed `git` and `az` launchers, including Windows `.exe`, `.cmd`, and `.bat` shims. It fetches only the two tags, computes both commit-set differences, resolves PRs through Azure DevOps's `lastMergeCommit` query, obtains directly linked work items, follows parent hierarchy links, and deduplicates all entities. Do not replace it with PR-title parsing or commit-message heuristics.
 
 ## Read the result
 

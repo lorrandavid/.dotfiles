@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from functools import lru_cache
 import html
 from html.parser import HTMLParser
 import json
@@ -90,6 +91,18 @@ def run_json(command: list[str]) -> Any:
         raise ComparisonError(f"Expected JSON but received invalid output: {exc}") from exc
 
 
+@lru_cache(maxsize=None)
+def executable(name: str) -> str:
+    candidates = [name]
+    if os.name == "nt":
+        candidates = [f"{name}.exe", f"{name}.cmd", f"{name}.bat", name]
+    for candidate in candidates:
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    raise ComparisonError(f"Missing required executable: {name}")
+
+
 def parse_repository_url(repository_url: str) -> dict[str, str]:
     scp_match = re.fullmatch(
         r"git@ssh\.dev\.azure\.com:v3/([^/]+)/([^/]+)/(.+?)(?:\.git)?/?",
@@ -137,16 +150,15 @@ def parse_repository_url(repository_url: str) -> dict[str, str]:
 
 
 def verify_prerequisites() -> None:
-    missing = [name for name in ("git", "az") if shutil.which(name) is None]
-    if missing:
-        raise ComparisonError(f"Missing required executable(s): {', '.join(missing)}")
-    run_json(["az", "extension", "show", "--name", "azure-devops", "--only-show-errors", "--output", "json"])
+    executable("git")
+    az = executable("az")
+    run_json([az, "extension", "show", "--name", "azure-devops", "--only-show-errors", "--output", "json"])
 
 
 def validate_tag(tag: str) -> None:
     if not tag:
         raise ComparisonError("Tag names cannot be empty.")
-    result = run(["git", "check-ref-format", f"refs/tags/{tag}"], check=False)
+    result = run([executable("git"), "check-ref-format", f"refs/tags/{tag}"], check=False)
     if result.returncode != 0:
         raise ComparisonError(f"Invalid Git tag name: {tag}")
 
@@ -154,7 +166,7 @@ def validate_tag(tag: str) -> None:
 def resolve_repository(scope: dict[str, str]) -> dict[str, str]:
     raw = run_json(
         [
-            "az",
+            executable("az"),
             "repos",
             "show",
             "--repository",
@@ -180,12 +192,23 @@ def resolve_repository(scope: dict[str, str]) -> dict[str, str]:
 
 
 def git_output(repo: Path, *arguments: str, check: bool = True) -> str:
-    return run(["git", "-C", str(repo), *arguments], check=check).stdout.strip()
+    return run([executable("git"), "-C", str(repo), *arguments], check=check).stdout.strip()
 
 
 def fetch_tag(repo: Path, tag: str) -> str:
     ref = f"refs/tags/{tag}"
-    run(["git", "-C", str(repo), "fetch", "--quiet", "--no-tags", "origin", f"+{ref}:{ref}"])
+    run(
+        [
+            executable("git"),
+            "-C",
+            str(repo),
+            "fetch",
+            "--quiet",
+            "--no-tags",
+            "origin",
+            f"+{ref}:{ref}",
+        ]
+    )
     return git_output(repo, "rev-parse", "--verify", f"{ref}^{{commit}}")
 
 
@@ -195,7 +218,18 @@ def rev_list(repo: Path, include: str, exclude: str) -> list[str]:
 
 
 def is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
-    result = run(["git", "-C", str(repo), "merge-base", "--is-ancestor", ancestor, descendant], check=False)
+    result = run(
+        [
+            executable("git"),
+            "-C",
+            str(repo),
+            "merge-base",
+            "--is-ancestor",
+            ancestor,
+            descendant,
+        ],
+        check=False,
+    )
     if result.returncode not in (0, 1):
         raise ComparisonError(result.stderr.strip() or "Could not determine tag ancestry.")
     return result.returncode == 0
@@ -237,7 +271,7 @@ def query_pull_requests(commits: list[str], repository: dict[str, str]) -> tuple
         try:
             raw = run_json(
                 [
-                    "az",
+                    executable("az"),
                     "devops",
                     "invoke",
                     "--area",
@@ -320,7 +354,7 @@ def parent_id(relations: Any) -> int | None:
 def fetch_work_item(work_item_id: int, repository: dict[str, str]) -> tuple[dict[str, Any], int | None]:
     raw = run_json(
         [
-            "az",
+            executable("az"),
             "boards",
             "work-item",
             "show",
@@ -363,7 +397,7 @@ def fetch_work_item(work_item_id: int, repository: dict[str, str]) -> tuple[dict
 def hydrate_pull_request(pr_id: int, shallow: dict[str, Any], repository: dict[str, str]) -> dict[str, Any]:
     raw = run_json(
         [
-            "az",
+            executable("az"),
             "repos",
             "pr",
             "show",
@@ -397,7 +431,7 @@ def hydrate_pull_request(pr_id: int, shallow: dict[str, Any], repository: dict[s
 def linked_work_item_ids(pr_id: int, repository: dict[str, str]) -> list[int]:
     raw = run_json(
         [
-            "az",
+            executable("az"),
             "repos",
             "pr",
             "work-item",
@@ -509,8 +543,9 @@ def compare(repository_url: str, base_tag: str, target_tag: str) -> dict[str, An
     print(f"Fetching tags {base_tag!r} and {target_tag!r}...", file=sys.stderr)
     with tempfile.TemporaryDirectory(prefix="ado-compare-tags-") as temp_dir:
         git_repo = Path(temp_dir) / "repo"
-        run(["git", "init", "--quiet", str(git_repo)])
-        run(["git", "-C", str(git_repo), "remote", "add", "origin", repository_url])
+        git = executable("git")
+        run([git, "init", "--quiet", str(git_repo)])
+        run([git, "-C", str(git_repo), "remote", "add", "origin", repository_url])
         base_commit = fetch_tag(git_repo, base_tag)
         target_commit = fetch_tag(git_repo, target_tag)
         target_only_commits = rev_list(git_repo, target_commit, base_commit)
