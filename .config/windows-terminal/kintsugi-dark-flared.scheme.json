@@ -1,0 +1,28 @@
+{
+  "$help": "Copy the scheme object from the schemes array into Windows Terminal's settings.json under the top-level schemes array.",
+  "schemes": [
+    {
+      "name": "Kintsugi Dark Flared",
+      "background": "#131314",
+      "foreground": "#dddddd",
+      "cursorColor": "#e08542",
+      "selectionBackground": "#2d221a",
+      "black": "#131314",
+      "blue": "#6c7a8a",
+      "cyan": "#6ac6f2",
+      "green": "#a3be8c",
+      "purple": "#b3a3d3",
+      "red": "#b38f8f",
+      "white": "#dddddd",
+      "yellow": "#ebcb8b",
+      "brightBlack": "#444444",
+      "brightBlue": "#8fa3b3",
+      "brightCyan": "#8ac6f2",
+      "brightGreen": "#c3de9c",
+      "brightPurple": "#d3a3d3",
+      "brightRed": "#d9a6a6",
+      "brightWhite": "#ffffff",
+      "brightYellow": "#fbe4a8"
+    }
+  ]
+}
