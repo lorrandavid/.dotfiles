@@ -231,18 +231,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/dmmulroy/skills.git",
       "skillPath": "coding-standards/SKILL.md",
-      "skillFolderHash": "b603c30f42dc3eda89e63e3f9c68b896960dd4a7",
+      "skillFolderHash": "196436f0ff5f95659a5c8e12b7b3d3e6a37fab74",
       "installedAt": "2026-07-11T10:00:13.031Z",
-      "updatedAt": "2026-07-11T10:00:13.031Z"
+      "updatedAt": "2026-07-18T19:10:10.490Z"
     },
     "tech-spec": {
       "source": "dmmulroy/skills",
       "sourceType": "github",
       "sourceUrl": "https://github.com/dmmulroy/skills.git",
       "skillPath": "tech-spec/SKILL.md",
-      "skillFolderHash": "e6f31b95ecba3bf43c48f548c6bcd9971aba4dae",
+      "skillFolderHash": "83764b4b41ec03cae1860a3dae247b85eba42e46",
       "installedAt": "2026-07-11T10:00:13.047Z",
-      "updatedAt": "2026-07-11T10:00:13.047Z"
+      "updatedAt": "2026-07-18T19:10:12.172Z"
     }
   },
   "dismissed": {
