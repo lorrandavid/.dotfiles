@@ -191,9 +191,44 @@ local subliminal = {
 	},
 }
 
-local selected_scheme = "Subliminal"
+-- Ported from the terminal palette in Ahmed Hatem's Kintsugi Dark Flared
+-- VS Code theme.
+local kintsugi_dark_flared = {
+	foreground = "#cacac2",
+	background = "#131314",
+	cursor_bg = "#d4a943",
+	cursor_border = "#d4a943",
+	cursor_fg = "#0e0e0e",
+	selection_bg = "#24262a",
+	selection_fg = "#dddddd",
+	scrollbar_thumb = "#33352d",
+	split = "#2a2a28",
+	ansi = {
+		"#131314", -- black
+		"#b38f8f", -- red
+		"#a3be8c", -- green
+		"#ebcb8b", -- yellow
+		"#6c7a8a", -- blue
+		"#b3a3d3", -- magenta
+		"#6ac6f2", -- cyan
+		"#dddddd", -- white
+	},
+	brights = {
+		"#444444", -- bright black
+		"#d9a6a6", -- bright red
+		"#c3de9c", -- bright green
+		"#fbe4a8", -- bright yellow
+		"#8fa3b3", -- bright blue
+		"#d3a3d3", -- bright magenta
+		"#8ac6f2", -- bright cyan
+		"#ffffff", -- bright white
+	},
+}
+
+local selected_scheme = "Kintsugi Dark Flared"
 
 M.color_schemes = {
+	["Kintsugi Dark Flared"] = kintsugi_dark_flared,
 	["Subliminal"] = subliminal,
 	["Ember"] = ember,
 	["Bearded Theme Arc Blueberry"] = arc_blueberry,
