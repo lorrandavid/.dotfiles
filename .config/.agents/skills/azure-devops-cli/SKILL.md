@@ -1,11 +1,11 @@
 ---
 name: azure-devops-cli
-description: Operate Azure DevOps through the Azure CLI for Boards work items, requirement history, comments, revisions, attachments, relations, backlog and sprint queries, and Repos pull requests, reviewers, policies, votes, conflict status, and work-item links. Use for read-only ADO inspection or explicitly requested mutations such as creating or updating work items and PRs.
+description: Operate Azure DevOps through the Azure CLI for Boards work items, requirement history, comments, revisions, attachments, relations, backlog and sprint queries, Pipeline definitions, runs, timelines and logs, and Repos pull requests, reviewers, policies, votes, conflict status, and work-item links. Use for read-only ADO inspection or explicitly requested mutations such as creating or updating work items and PRs or queuing a pipeline run.
 ---
 
 # Azure DevOps CLI
 
-Prefer `az boards`, `az repos`, and `az devops` over manual web instructions. Use `az devops invoke` only when the extension has no first-class command, notably for pull-request comment threads.
+Prefer `az boards`, `az pipelines`, `az repos`, and `az devops` over manual web instructions. Use `az devops invoke` only when the extension has no first-class command, notably for pipeline timelines and logs or pull-request comment threads.
 
 Read [references/commands.md](references/commands.md) before executing an ADO operation.
 
@@ -28,7 +28,7 @@ State the classification internally before running commands and include it in st
 
 ### Read-only
 
-Commands that only inspect state: `show`, `list`, `query`, `relation show`, `relation list-type`, work-item comments/revisions/updates/attachment metadata, PR reviewer/work-item/policy lists, iteration queries, `az devops configure --list`, and GET requests through `az devops invoke`.
+Commands that only inspect state: `show`, `list`, `query`, `relation show`, `relation list-type`, work-item comments/revisions/updates/attachment metadata, pipeline definition/run/timeline/log reads, PR reviewer/work-item/policy lists, iteration queries, `az devops configure --list`, and GET requests through `az devops invoke`.
 
 Run read-only commands without confirmation when their scope is clear.
 
@@ -36,7 +36,7 @@ Attachment download is read-only in ADO but writes a local artifact. Download on
 
 ### Mutating
 
-Commands that create or change recoverable collaboration state: create/update work items or PRs, add discussions or PR comments, add/remove relations or linked work items, add/remove reviewers, set/reset votes, queue policy evaluation, and update iteration/team configuration.
+Commands that create or change recoverable collaboration state: create/update work items or PRs, queue pipeline runs, add discussions or PR comments, add/remove relations or linked work items, add/remove reviewers, set/reset votes, queue policy evaluation, and update iteration/team configuration.
 
 Before mutation:
 
@@ -75,7 +75,7 @@ Use the existing `az login` session or `az devops login --organization <org-url>
 
 ## Workflow
 
-1. Classify the request as work item, requirement history/attachment, relation/link, PR, PR comment, policy/reviewer/vote, or sprint/iteration.
+1. Classify the request as work item, requirement history/attachment, relation/link, pipeline definition/run/log, PR, PR comment, policy/reviewer/vote, or sprint/iteration.
 2. Classify it as read-only, mutating, or high-impact.
 3. Resolve and verify defaults plus missing organization/project/repository/team/resource identifiers.
 4. Read current state when needed, then run the narrowest command from the command reference.
@@ -112,7 +112,7 @@ For machine-readable output, normalize to this envelope while preserving the raw
 }
 ```
 
-Use stable operation names such as `work-item.create`, `work-item.update`, `work-item.comment`, `work-item.comments.list`, `work-item.revisions.list`, `work-item.updates.list`, `work-item.attachments.list`, `work-item.attachment.download`, `requirement.snapshot`, `work-item.link`, `pr.show`, `pr.update`, `pr.comment`, `pr.vote`, `pr.policy.list`, and `iteration.current`.
+Use stable operation names such as `work-item.create`, `work-item.update`, `work-item.comment`, `work-item.comments.list`, `work-item.revisions.list`, `work-item.updates.list`, `work-item.attachments.list`, `work-item.attachment.download`, `requirement.snapshot`, `work-item.link`, `pipeline.list`, `pipeline.run.queue`, `pipeline.run.show`, `pipeline.run.timeline`, `pipeline.run.log`, `pr.show`, `pr.update`, `pr.comment`, `pr.vote`, `pr.policy.list`, and `iteration.current`.
 
 For paged operations, add a sibling `pagination` object per collection:
 
@@ -135,4 +135,5 @@ Set `complete` to `false` when a requested limit, error, or interrupted fetch le
 - Distinguish missing parameters, authentication, authorization, validation rules, revision conflicts, and unsupported commands.
 - On mutation failure, read the resource before retrying; the first request may have partially succeeded.
 - Do not retry non-idempotent mutations blindly.
+- Treat pipeline queueing as non-idempotent. Capture the returned run ID; after an ambiguous response, inspect recent runs for an exact definition, branch, and source-version match before queueing again.
 - If `az devops invoke` cannot resolve an area/resource, discover available resources with a read-only `az devops invoke` query before changing the route.

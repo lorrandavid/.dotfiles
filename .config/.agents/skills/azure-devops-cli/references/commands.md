@@ -8,6 +8,7 @@ Use these patterns after the core workflow in `SKILL.md`. Examples are single-li
 - [Work items](#work-items)
 - [Requirement history and attachments](#requirement-history-and-attachments)
 - [Work-item relations and PR links](#work-item-relations-and-pr-links)
+- [Pipelines](#pipelines)
 - [Pull requests](#pull-requests)
 - [PR reviewers, votes, policies, and conflicts](#pr-reviewers-votes-policies-and-conflicts)
 - [PR comments](#pr-comments)
@@ -218,6 +219,68 @@ az repos pr work-item remove --id <pr-id> --work-items <work-item-id-1> <work-it
 
 Read both the PR and work item first when project or repository scope is uncertain, then verify the linked-work-item list.
 
+## Pipelines
+
+### Resolve a repository pipeline — read-only
+
+Prefer the pipeline ID recorded by repository instructions. Otherwise list pipelines associated with the Azure Repos repository:
+
+```text
+az pipelines list --repository <repo-name-or-id> --repository-type tfsgit --project <project> --org <org-url> --only-show-errors --output json
+```
+
+Show the selected definition and verify its ID, name, repository, YAML path, default branch, queue status, and required parameters:
+
+```text
+az pipelines show --id <pipeline-id> --project <project> --org <org-url> --only-show-errors --output json
+```
+
+Do not choose by name similarity when multiple applicable definitions remain. Return the candidates and require the caller to resolve the pipeline contract.
+
+### Queue an exact branch revision — mutating
+
+Push the branch first and verify the expected commit is its remote head. Queue the selected pipeline against both that branch and commit:
+
+```text
+az pipelines run --id <pipeline-id> --branch refs/heads/<source-branch> --commit-id <source-sha> --project <project> --org <org-url> --only-show-errors --output json
+```
+
+Pass only repository-defined `--parameters` or `--variables`; never guess secret or environment values. Preserve the complete response and returned run ID. Queueing is non-idempotent: if the response is lost or ambiguous, list recent runs for the pipeline and branch, then compare their `definition.id`, `sourceBranch`, and `sourceVersion` before deciding whether a retry is needed:
+
+```text
+az pipelines runs list --pipeline-ids <pipeline-id> --branch refs/heads/<source-branch> --query-order QueueTimeDesc --top <small-limit> --project <project> --org <org-url> --only-show-errors --output json
+```
+
+### Monitor and diagnose a run — read-only
+
+Poll the captured run ID at a reasonable interval until `status` is `completed`:
+
+```text
+az pipelines runs show --id <run-id> --project <project> --org <org-url> --only-show-errors --output json
+```
+
+Do not infer success from command exit status or a completed state alone. Require `result` to equal `succeeded`; treat `partiallySucceeded`, `failed`, and `canceled` as non-passing. Verify `definition.id`, `sourceBranch`, and `sourceVersion` against the requested pipeline, branch, and commit.
+
+For a non-passing run, fetch its timeline and use failed records, issues, and `log.id` values to select relevant diagnostics:
+
+```text
+az devops invoke --area build --resource timeline --route-parameters project=<project> buildId=<run-id> --org <org-url> --api-version 7.1 --http-method GET --only-show-errors --output json
+```
+
+Fetch only logs relevant to failed records. List log metadata when the timeline does not identify a usable log:
+
+```text
+az devops invoke --area build --resource logs --route-parameters project=<project> buildId=<run-id> --org <org-url> --api-version 7.1 --http-method GET --only-show-errors --output json
+```
+
+Read a selected log as text:
+
+```text
+az devops invoke --area build --resource logs --route-parameters project=<project> buildId=<run-id> logId=<log-id> --org <org-url> --api-version 7.1-preview.2 --http-method GET --accept-media-type text/plain --only-show-errors
+```
+
+Preserve the run ID, definition, branch, source version, status, result, portal URL, failed timeline records, issues, and concise relevant log excerpts. Never expose secret variables or authorization material from logs.
+
 ## Pull requests
 
 ### Read — read-only
@@ -409,10 +472,12 @@ Do not rely on display-formatted `table` output for automation or parsing. Prese
 - [Azure CLI: work items](https://learn.microsoft.com/en-us/cli/azure/boards/work-item?view=azure-cli-latest)
 - [Azure CLI: work-item relations](https://learn.microsoft.com/en-us/cli/azure/boards/work-item/relation?view=azure-cli-latest)
 - [Azure CLI: pull requests](https://learn.microsoft.com/en-us/cli/azure/repos/pr?view=azure-cli-latest)
+- [Azure CLI: pipelines](https://learn.microsoft.com/en-us/cli/azure/pipelines?view=azure-cli-latest) and [pipeline runs](https://learn.microsoft.com/en-us/cli/azure/pipelines/runs?view=azure-cli-latest)
 - [Azure CLI: project iterations](https://learn.microsoft.com/en-us/cli/azure/boards/iteration/project?view=azure-cli-latest) and [team iterations](https://learn.microsoft.com/en-us/cli/azure/boards/iteration/team?view=azure-cli-latest)
 - [Azure CLI: `az devops invoke`](https://learn.microsoft.com/en-us/cli/azure/devops?view=azure-cli-latest#az-devops-invoke)
 - [Azure DevOps REST 7.1: work-item comments](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/comments/get-comments?view=azure-devops-rest-7.1)
 - [Azure DevOps REST 7.1: work-item revisions](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/revisions/list?view=azure-devops-rest-7.1)
 - [Azure DevOps REST 7.1: work-item update deltas](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/updates/list?view=azure-devops-rest-7.1)
 - [Azure DevOps REST 7.1: attachment downloads](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/attachments/get?view=azure-devops-rest-7.1)
+- [Azure DevOps REST 7.1: build timeline](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/timeline/get?view=azure-devops-rest-7.1) and [build logs](https://learn.microsoft.com/en-us/rest/api/azure/devops/build/builds/get-build-logs?view=azure-devops-rest-7.1)
 - [Azure DevOps REST 7.1: pull-request threads](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-threads?view=azure-devops-rest-7.1)

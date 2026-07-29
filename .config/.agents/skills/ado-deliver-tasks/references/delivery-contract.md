@@ -14,6 +14,31 @@
   "validation": [
     { "command": "<command>", "status": "passed", "summary": "<concise result>" }
   ],
+  "pipeline": {
+    "definitionId": 17,
+    "definitionName": "Repository CI",
+    "branch": "refs/heads/feat/4201-revoke-active-sessions",
+    "finalSourceVersion": "<sha>",
+    "finalResult": "succeeded",
+    "attempts": [
+      {
+        "runId": 901,
+        "url": "<portal-url>",
+        "sourceVersion": "<failing-sha>",
+        "status": "completed",
+        "result": "failed",
+        "failures": ["<failed step and concise error>"]
+      },
+      {
+        "runId": 902,
+        "url": "<portal-url>",
+        "sourceVersion": "<successful-sha>",
+        "status": "completed",
+        "result": "succeeded",
+        "failures": []
+      }
+    ]
+  },
   "review": {
     "standards": [],
     "spec": [],
@@ -90,6 +115,7 @@ Use the Conventional Commit subject as the PR title: `<type>(#<task-id>): <brief
 ## Validation
 
 - `<command>` — passed
+- Azure Pipeline `<definition-name>` run [#<run-id>](<portal-url>) for `<source-sha>` — succeeded
 
 ## Risk and rollout
 
@@ -128,6 +154,7 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
       "id": 4201,
       "status": "pr-published",
       "worktree": "<absolute-path>",
+      "worktreeCleanup": "removed",
       "branch": "feat/4201-revoke-active-sessions",
       "baseBranch": "main",
       "stackedOn": null,
@@ -137,6 +164,16 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
       "quality": {
         "tests": "passed",
         "typecheck": "passed",
+        "pipeline": {
+          "definitionId": 17,
+          "definitionName": "Repository CI",
+          "runId": 902,
+          "url": "<portal-url>",
+          "branch": "refs/heads/feat/4201-revoke-active-sessions",
+          "sourceVersion": "<sha>",
+          "result": "succeeded",
+          "attemptCount": 2
+        },
         "standardsReviewFindings": 0,
         "specReviewFindings": 0,
         "cddVerdict": "pass-with-concerns",
@@ -168,3 +205,7 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
 ```
 
 For a stacked Task, set `baseBranch` and `pullRequest.targetBranch` to the predecessor's source branch and set `stackedOn` to its Task ID, PR ID, branch, and head commit. Keep raw ADO results when the observed schema cannot be normalized safely.
+
+Keep `worktree` as the original absolute path for traceability. Set `worktreeCleanup` to `removed` after verified removal, `preserved-dirty` when local changes prevent safe removal, `removal-failed` when the clean worktree could not be removed, or `preserved` when publication did not complete and recovery rules retain the worktree.
+
+Preserve every pipeline attempt in the implementation evidence, including failed runs and their diagnostic summaries. The normalized `quality.pipeline` object identifies only the final successful run, whose `branch` and `sourceVersion` must match the PR source branch and its current remote head. Omit `pullRequest` entirely when no exact-SHA pipeline run succeeded.

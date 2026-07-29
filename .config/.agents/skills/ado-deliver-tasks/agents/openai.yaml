@@ -1,4 +1,4 @@
 interface:
   display_name: "Deliver ADO Tasks"
-  short_description: "Deliver selected ADO Tasks as draft PRs"
-  default_prompt: "Use $ado-deliver-tasks to implement selected Azure DevOps Tasks in isolated worktrees and create linked draft or stacked PRs."
+  short_description: "Deliver ADO Tasks through validated draft PRs"
+  default_prompt: "Use $ado-deliver-tasks to implement selected Azure DevOps Tasks, pass the exact-branch Azure Pipeline, and create linked draft or stacked PRs."
