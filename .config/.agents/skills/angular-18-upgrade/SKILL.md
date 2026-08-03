@@ -1,6 +1,6 @@
 ---
 name: angular-18-upgrade
-description: Upgrade an Angular application to Angular 18 through sequential major-version migrations, including Angular Material MDC migration, dependency alignment, tests, and Azure Pipelines Node updates. Use when a project must migrate from Angular 13–17 to Angular 18 or troubleshoot an Angular 18 upgrade.
+description: Upgrade an Angular application to Angular 18 through sequential major-version migrations, ensuring every migration included automatically by ng update is executed, with Angular Material MDC handling, dependency alignment, tests, and Azure Pipelines Node updates. Use when a project must migrate from Angular 13–17 to Angular 18 or troubleshoot an Angular 18 upgrade.
 compatibility: Requires Git, Node.js, npm, and an Angular workspace. Select a Node.js release supported by every Angular major involved in the migration.
 ---
 
@@ -19,7 +19,8 @@ Inspect `package.json`, `package-lock.json`, `angular.json`, TypeScript configs,
 - ng-bootstrap, Apollo, ngx-translate, ngx-mask, PDF viewer, and Angular ESLint dependencies;
 - available build, test, lint, and start scripts;
 - private npm registries and the pipeline's Node version;
-- whether the skill-bundled Angular 18 policy manifest exists at `references/most-used-versions-angular-angular-18.json`, including its dependency groups, `overrides`, and every other top-level section.
+- whether the skill-bundled Angular 18 policy manifest exists at `references/most-used-versions-angular-angular-18.json`, including its dependency groups, `overrides`, and every other top-level section;
+- every non-optional package migration in the exact source/target version range that `ng update` will execute automatically.
 
 Use the repository's local CLI (`npx ng version`) rather than requiring a global CLI replacement. Verify the official Angular Update Guide and changelogs for the exact source/target pair before editing.
 
@@ -63,8 +64,9 @@ For each next major `N` through 18:
    npx @angular/cli@N update @angular/material@N
    ```
 5. Install dependencies. Use plain `npm install` for Angular 18. For intermediate peer conflicts, use `--force` only with the exception record from step 3; prefer a compatible dependency version over bypassing resolution.
-6. Review generated migrations and the diff. Run the narrowest useful checks plus build and tests. Fix regressions before advancing.
-7. Close the major checkpoint by proving all of the following:
+6. Save or capture the complete update output. Account for every non-optional migration selected automatically by the CLI: ran successfully, produced no changes, or failed and was resolved. Do not mistake a package version change for proof that its migrations completed. Compare the output with the target packages' `ng-update.migrations` collections for the exact source/target range. If an update was interrupted or a migration was missed, use the target-version CLI's documented `--migrate-only --from ... --to ...` command to execute the same automatic package migrations, then verify the output and diff. Do not opt into optional migrations or invoke unrelated modernization schematics manually.
+7. Review generated migrations and the diff. Run the narrowest useful checks plus build and tests. Fix regressions before advancing.
+8. Close the major checkpoint by proving all of the following:
 
    - `npx ng version` reports core and CLI at major `N`, with Material also at `N` when present;
    - `git diff` contains only understood migration changes;
@@ -74,7 +76,23 @@ For each next major `N` through 18:
 
 Do not combine major hops or advance through a failed checkpoint. Before declaring Angular 18 complete, prove a plain `npm install` and `npm ci` both succeed without `--force` or `--legacy-peer-deps`. The sequence is complete when Angular core, CLI, and Material (when present) all report major 18 and every intermediate migration has a reviewable checkpoint.
 
-## 5. Finish Angular 18 alignment
+## 5. Verify automatic migrations
+
+The migration scope is the non-optional migrations that the versioned `ng update` commands select automatically for Angular core, CLI, and Material. Do not manually run Angular modernization generators such as `@angular/core:standalone`, `@angular/core:control-flow`, `@angular/core:inject`, or `@angular/core:route-lazy-loading`. Do not run optional named migrations such as `ng update @angular/cli --name use-application-builder` unless the user separately requests one.
+
+For every major hop, retain a migration ledger containing:
+
+- package and exact `from`/`to` versions;
+- every applicable non-optional entry from the package's `ng-update.migrations` collection;
+- the corresponding CLI output showing that it ran;
+- whether it changed files or was a legitimate no-op;
+- the reviewed diff and validation result.
+
+If the CLI output is unavailable or incomplete, do not assume success. Inspect the installed target package's `package.json` to resolve its `ng-update.migrations` collection, determine the non-optional migrations within the traversed version range, and rerun that range with `--migrate-only` when necessary. This verification must not expand the scope to optional or manually invoked schematics.
+
+This step is complete only when every automatically applicable migration is accounted for and validated.
+
+## 6. Finish Angular 18 alignment
 
 - If TSLint or codelyzer is present, migrate with `ng add @angular-eslint/schematics`, verify linting, then remove TSLint packages and `tslint.json`.
 - Look for the skill-bundled policy manifest at `references/most-used-versions-angular-angular-18.json`, resolving the path relative to this `SKILL.md`. When present, validate and read the entire JSON before dependency alignment; it is the authoritative organization policy for the final Angular 18 package manifest, not merely a version lookup table.
@@ -89,7 +107,7 @@ Do not combine major hops or advance through a failed checkpoint. Before declari
 
 Load [Known regressions and fixes](references/angular-18-playbook.md) only for dependencies or symptoms found in the project.
 
-## 6. Validate and report
+## 7. Validate and report
 
 Run, using the repository's actual script names:
 
@@ -103,4 +121,4 @@ Run, using the repository's actual script names:
 
 Search once more for `@angular/material/legacy-`, legacy Material SCSS mixins, TSLint/codelyzer, flexible application dependency versions, and stale pipeline Node values. Inspect `.npmrc` keys with token values redacted; never print the file wholesale or expose credentials in logs. Remove temporary diagnostics.
 
-Commit the final focused changes only after validation. Report version hops, migrations performed, dependency decisions, commands and results, unresolved warnings, visual areas requiring human review, and pipeline status. The upgrade is complete only when Angular reports version 18, installs are reproducible, build and tests pass or documented pre-existing failures remain unchanged, Material legacy usage is absent when Material is installed, and the pipeline runtime is aligned.
+Commit the final focused changes only after validation. Report version hops, the complete automatic-migration ledger (including no-op migrations), dependency decisions, commands and results, unresolved warnings, visual areas requiring human review, and pipeline status. The upgrade is complete only when Angular reports version 18, every non-optional migration automatically applicable to each traversed version range is accounted for and validated, installs are reproducible, build and tests pass or documented pre-existing failures remain unchanged, Material legacy usage is absent when Material is installed, and the pipeline runtime is aligned.

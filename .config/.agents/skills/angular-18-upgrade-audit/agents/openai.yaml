@@ -1,0 +1,4 @@
+interface:
+  display_name: "Angular 18 Upgrade Audit"
+  short_description: "Verify Angular 18 upgrades and report gaps"
+  default_prompt: "Use $angular-18-upgrade-audit to verify this Angular 18 migration and report anything missing or unproven."
