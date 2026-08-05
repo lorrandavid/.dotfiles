@@ -13,6 +13,7 @@
 #   ./dot.sh doctor     # Run diagnostics
 #   ./dot.sh edit       # Open dotfiles in editor
 #   ./dot.sh install    # Install required tools via package manager
+#   ./dot.sh update-skills  # Update project skills without installing Claude skills
 #   ./dot.sh help       # Show help message
 
 set -euo pipefail
@@ -723,6 +724,22 @@ do_install() {
     write_info "You may need to restart your terminal for PATH changes to take effect."
 }
 
+do_update_skills() {
+    write_header "Updating project skills"
+
+    if ! command -v node &>/dev/null || ! command -v npx &>/dev/null; then
+        write_error "node and npx are required"
+        return 1
+    fi
+
+    if ! node "$DOTFILES_DIR/scripts/update-project-skills.mjs"; then
+        write_error "Failed to update project skills"
+        return 1
+    fi
+
+    write_success "Project skills updated without installing Claude skills"
+}
+
 do_setup() {
     write_header "Running full setup (install + link)"
     do_install
@@ -747,6 +764,7 @@ show_help() {
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
     install   Install required tools (wezterm, nvim) via package manager
+    update-skills  Update project skills without installing Claude skills
     help      Show this help message
 
   EXAMPLES:
@@ -757,6 +775,7 @@ show_help() {
     ./dot.sh doctor     # Run health checks
     ./dot.sh setup      # Install tools and link configs
     ./dot.sh install    # Install wezterm and nvim
+    ./dot.sh update-skills  # Update project skills only
 
 EOF
 }
@@ -778,6 +797,7 @@ case "$command" in
     doctor)      do_doctor ;;
     edit)        do_edit ;;
     install)     do_install ;;
+    update-skills) do_update_skills ;;
     setup)       do_setup ;;
     help)        show_help ;;
     *)

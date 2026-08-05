@@ -7,7 +7,7 @@
     symbolic links from .dotfiles\.config to the user's .config folder.
 
 .PARAMETER Command
-    The command to execute: link, unlink, status, doctor, edit, help
+    The command to execute: link, unlink, status, doctor, edit, update-skills, help
 
 .PARAMETER Configs
     Optional config names to target when using the unlink command.
@@ -19,11 +19,12 @@
     .\dot.ps1 status     # Show current link status
     .\dot.ps1 doctor     # Run diagnostics
     .\dot.ps1 edit       # Open dotfiles in editor
+    .\dot.ps1 update-skills  # Update project skills without installing Claude skills
 #>
 
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "setup", "help")]
+    [ValidateSet("link", "unlink", "status", "doctor", "edit", "install", "setup", "update-skills", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)]
@@ -777,6 +778,25 @@ function Invoke-Install {
     Write-Info "You may need to restart your terminal for PATH changes to take effect."
 }
 
+function Invoke-UpdateSkills {
+    Write-Header "Updating project skills"
+
+    if (-not (Get-Command node -ErrorAction SilentlyContinue) -or
+        -not (Get-Command npx -ErrorAction SilentlyContinue)) {
+        Write-Error "node and npx are required"
+        exit 1
+    }
+
+    $updateScript = Join-Path $script:DotfilesDir "scripts\update-project-skills.mjs"
+    & node $updateScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Failed to update project skills"
+        exit $LASTEXITCODE
+    }
+
+    Write-Success "Project skills updated without installing Claude skills"
+}
+
 function Invoke-Setup {
     Write-Header "Running full setup (install + link)"
     Invoke-Install
@@ -801,6 +821,7 @@ function Show-Help {
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
     install   Install required tools (wezterm, nvim) via winget
+    update-skills  Update project skills without installing Claude skills
     help      Show this help message
 
   EXAMPLES:
@@ -811,6 +832,7 @@ function Show-Help {
     .\dot.ps1 doctor     # Run health checks
     .\dot.ps1 setup      # Install tools and link configs
     .\dot.ps1 install    # Install wezterm and nvim
+    .\dot.ps1 update-skills  # Update project skills only
 
   NOTE:
     The 'link' command requires Administrator privileges.
@@ -830,6 +852,7 @@ switch ($Command) {
     "doctor"  { Invoke-Doctor }
     "edit"    { Invoke-Edit }
     "install"     { Invoke-Install }
+    "update-skills" { Invoke-UpdateSkills }
     "setup"       { Invoke-Setup }
     "help"        { Show-Help }
     default   { Show-Help }
