@@ -299,21 +299,23 @@ az repos pr show --id <pr-id> --org <org-url> --query '{id:pullRequestId,title:t
 
 ### Create — mutating
 
-Create a PR and link work items in the same operation when possible:
+Create a PR and link work items in the same operation when possible. For a multiline description, first render the final Markdown to a temporary UTF-8 file, inspect it, and pass its contents as one quoted argument. In Bash:
 
 ```text
-az repos pr create --repository <repo-name-or-id> --project <project> --org <org-url> --source-branch <source-branch> --target-branch <target-branch> --title <title> --description <description> --work-items <work-item-id-1> <work-item-id-2> --optional-reviewers <identity> --required-reviewers <identity> --only-show-errors --output json
+az repos pr create --repository <repo-name-or-id> --project <project> --org <org-url> --source-branch <source-branch> --target-branch <target-branch> --title <title> --description "$(<description.md)" --work-items <work-item-id-1> <work-item-id-2> --optional-reviewers <identity> --required-reviewers <identity> --only-show-errors --output json
 ```
 
-Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
+Do not put literal `\n` sequences in `--description`, omit the quotes around command substitution, or collapse the Markdown to one line. When the active shell is not Bash, use that shell's equivalent file-to-single-argument mechanism and verify that it preserves real line breaks. Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
 
 ### Update — mutating or high-impact
 
-Update metadata or draft state:
+Update metadata or draft state. Preserve multiline Markdown with the same file-based approach used for creation:
 
 ```text
-az repos pr update --id <pr-id> --org <org-url> --title <title> --description <description> --draft <true-or-false> --only-show-errors --output json
+az repos pr update --id <pr-id> --org <org-url> --title <title> --description "$(<description.md)" --draft <true-or-false> --only-show-errors --output json
 ```
+
+After creating or updating a PR, read its unfiltered `description` back from the server. Compare it with the rendered Markdown and verify that headings remain on separate lines and that the value contains no literal `\n` sequences. If formatting differs, correct the invocation and read it back again before reporting success.
 
 Treat `--status completed`, `--status abandoned`, `--bypass-policy true`, `--delete-source-branch true`, and `--transition-work-items true` as high-impact. Read policies and merge status immediately before completing a PR, and read the PR back afterward.
 

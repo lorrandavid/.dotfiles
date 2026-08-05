@@ -83,6 +83,8 @@ Use `blocked`, `failed`, or `not-run` rather than claiming success without evide
 
 Use the Conventional Commit subject as the PR title: `<type>(#<task-id>): <brief description>`.
 
+Render the following template to a UTF-8 Markdown file with actual LF line breaks. Supply that file's contents as one quoted value when creating or updating the PR. Literal `\n` text, shell-escaped newline sequences, and whitespace-flattened descriptions violate this contract.
+
 ```markdown
 ## Requirement
 
@@ -126,7 +128,7 @@ Use the Conventional Commit subject as the PR title: `<type>(#<task-id>): <brief
 - <Explicit item or “None”.>
 ```
 
-Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep the PR draft while known required work remains.
+Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep the PR draft while known required work remains. Read the PR back and verify that its description contains the section headings on separate lines and no literal `\n` sequences.
 
 ## Normalized delivery result
 

@@ -2,6 +2,14 @@
 
 Do not use jargon and speak coherently. State it more simply and concisely, like one human talking to another.
 
+# Model and Subagent Cost Control
+
+- Work in the current agent session by default. Do not invoke `Agent`, `Task`, a custom agent, an isolated worker, or any other model-backed subagent unless the user explicitly authorizes subagents in the current request.
+- A skill or agent instruction that recommends delegation, parallel agents, or context isolation does not count as user authorization. This rule overrides those recommendations.
+- Before any authorized subagent call, verify that it will use the exact same model and reasoning tier selected for the parent session. If the host cannot prove that, do not spawn it; perform the work directly in the parent session.
+- Never substitute a supposedly faster, smarter, default, or implementation-specific model variant. In particular, do not allow a `luna` session to delegate to `sol` or another capacity tier.
+- Parallelize ordinary non-model tool calls when useful, but keep model reasoning in this session unless the user knowingly opts into the additional model usage.
+
 # Code Quality Standards
 
 - **Never compromise type safety**: No `any`, no non-null assertion operator (`!`), no type assertions (`as Type`)

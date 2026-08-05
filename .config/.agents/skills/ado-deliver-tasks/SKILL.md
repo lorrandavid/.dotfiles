@@ -12,7 +12,7 @@ Read [references/delivery-contract.md](references/delivery-contract.md) before c
 ## Compose the supporting skills
 
 - Use `$azure-devops-cli` for all work-item, pipeline, relation, PR, policy, reviewer, conflict, and link operations.
-- Use the unchanged `$implement` skill for the initial implementation in each selected Task's isolated workspace. Let it own code exploration, `$tdd`, routine checks, the final relevant suite, `$code-review`, and commits. Invoke it again only through the bounded CDD remediation loop in step 8.
+- Use the unchanged `$implement` skill in the current agent session for the initial implementation in each selected Task's isolated workspace. Let it own code exploration, `$tdd`, routine checks, the final relevant suite, `$code-review`, and commits. Invoke it again only through the bounded CDD remediation loop in step 8. Skill invocation is not permission to spawn a model-backed subagent.
 - Pass repository standards to `$implement`; include `$coding-standards` for TypeScript repositories.
 - Use `$deslop` on each Task diff after `$implement`, then rerun checks affected by cleanup.
 - Use `$cognitive-driven-development-review` after cleanup and affected checks. Keep its findings separate from `$code-review`'s Standards and Spec axes.
@@ -96,8 +96,8 @@ A Task is eligible only when:
 For each scheduling wave:
 
 1. Compute the eligible frontier.
-2. Run independent eligible Tasks concurrently when the harness supports isolated workers; give each worker exclusive ownership of its worktree and Task.
-3. Invoke `$implement` for the initial implementation of each Task.
+2. Process eligible Tasks sequentially in the current agent session by default, while retaining one isolated worktree per Task. Use isolated model-backed workers only when the user explicitly authorizes subagents and the harness proves they will use the exact parent model and reasoning tier.
+3. Invoke `$implement` in the current session for the initial implementation of each Task.
 4. Verify, deslop, run the CDD gate, perform bounded remediation when required, finalize and push the branch, run the pre-PR pipeline against the pushed SHA, remediate and repeat until it succeeds, then create, link, and read back that Task's draft PR.
 5. Remove and verify removal of the Task's clean worktree.
 6. Mark `pr-published` only after the successful pipeline run, PR, and branch are verified; then recompute the frontier.
@@ -167,12 +167,14 @@ For each non-passing run:
 
 Repeat without an arbitrary retry cap while each failure yields an actionable in-scope remediation and measurable progress. Never reuse a successful result from an older SHA. If remediation would expand scope, violate accepted requirements or non-goals, or cannot address an infrastructure, authentication, permission, agent-capacity, cancellation, or external-service failure, mark the Task `blocked`, preserve its worktree and evidence, and do not create a PR.
 
-Append the successful terminal run to the evidence. Verify its `sourceBranch` and `sourceVersion` equal the Task branch and current remote `HEAD`. Add that run's ID, URL, definition, source SHA, and result to the prepared PR description without changing branch contents or history. Only then create the **draft** PR:
+Append the successful terminal run to the evidence. Verify its `sourceBranch` and `sourceVersion` equal the Task branch and current remote `HEAD`. Add that run's ID, URL, definition, source SHA, and result to the prepared PR description without changing branch contents or history.
+
+Render the complete PR description as Markdown with real line breaks in a temporary `.md` file. Pass the file's contents as one quoted CLI argument; never flatten the Markdown, join its lines with spaces, or pass literal `\n` escape sequences. Inspect the rendered file before creation. Only then create the **draft** PR:
 
 - Root Task: source is the Task branch; target is the configured base branch.
 - Single-predecessor Task: source is the Task branch; target is the predecessor's published source branch.
 
-Link the PR to the Task and parent with `$azure-devops-cli`. Read back links, policies, reviewers, source/target branches, and server conflict status. Do not delete a source branch while another selected Task is stacked on it.
+Link the PR to the Task and parent with `$azure-devops-cli`. Read back the title and description as well as links, policies, reviewers, source/target branches, and server conflict status. Verify the server description retains the required Markdown headings and actual line breaks; repair and re-read it before publication is considered successful if it was escaped or flattened. Do not delete a source branch while another selected Task is stacked on it.
 
 After that readback succeeds, verify the Task worktree has no staged, unstaged, or untracked changes. Remove the exact worktree with `git worktree remove <absolute-task-worktree-path>` without `--force`, then verify its path is absent from `git worktree list --porcelain`. Keep the local and remote branches. If the worktree is dirty or removal fails, do not force removal; preserve it, keep the Task `pr-published`, and report the cleanup failure with its path and status.
 

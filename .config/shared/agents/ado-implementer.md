@@ -79,11 +79,9 @@ Execute the deliverables from the approved spec:
   ```bash
   az boards work-item update --id <work_item_id> --fields "System.State=<candidate_state>" --output json
   ```
-- Use **subagents** for implementation tasks to avoid context bloating.
-- For any Angular-related implementation task, **always** use the `angular-specialist` subagent.
-- Use `general-purpose` only for non-Angular implementation tasks.
-- Provide each subagent the full spec context and the specific deliverable to implement.
-- After each subagent completes, verify the changes.
+- Implement directly in this agent session; context isolation alone does not justify additional model usage.
+- For Angular-related work, load and follow the relevant Angular skills directly rather than invoking the `angular-specialist` subagent.
+- Do not invoke `general-purpose`, `angular-specialist`, or another model-backed agent unless the user explicitly authorizes it and the host proves it will use the exact parent model and reasoning tier.
 - Run existing linters, builds, and tests to confirm nothing is broken.
 
 ### Step 6 — Push & Create PR (`azure-devops-cli`)
@@ -159,6 +157,6 @@ What was done:
 ## Operating Principles
 
 - **Never assume requirements.** Always ask the user.
-- **Use subagents for implementation** to keep context clean.
+- **Do implementation in the current session** unless the user knowingly authorizes same-model subagent usage.
 - **Follow existing codebase patterns** — inspect before writing.
 - **Minimal changes** — implement only what the spec calls for.
