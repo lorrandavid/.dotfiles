@@ -6,6 +6,33 @@
 {
   "taskId": 4201,
   "sourceRevision": 6,
+  "lifecycle": {
+    "workItemType": "Task",
+    "availableStates": [
+      { "name": "To Do", "category": "Proposed" },
+      { "name": "Doing", "category": "InProgress" },
+      { "name": "Ready for Review", "category": "InProgress" },
+      { "name": "Done", "category": "Completed" }
+    ],
+    "transitions": [
+      {
+        "moment": "work-started",
+        "previousState": "To Do",
+        "selectedState": "Doing",
+        "finalState": "Doing",
+        "selectionReason": "Configured InProgress state",
+        "verified": true
+      },
+      {
+        "moment": "pr-published",
+        "previousState": "Doing",
+        "selectedState": "Ready for Review",
+        "finalState": "Ready for Review",
+        "selectionReason": "Explicit configured review state",
+        "verified": true
+      }
+    ]
+  },
   "implementation": { "skill": "implement", "status": "completed" },
   "commits": ["<sha>"],
   "acceptanceCriteria": [
@@ -160,6 +187,12 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
       "branch": "feat/4201-revoke-active-sessions",
       "baseBranch": "main",
       "stackedOn": null,
+      "lifecycle": {
+        "workItemType": "Task",
+        "currentState": "Ready for Review",
+        "currentStateCategory": "InProgress",
+        "verified": true
+      },
       "commitSubjects": ["feat(#4201): revoke active sessions"],
       "implementation": { "skill": "implement", "status": "completed" },
       "commits": ["<sha>"],
@@ -209,5 +242,7 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
 For a stacked Task, set `baseBranch` and `pullRequest.targetBranch` to the predecessor's source branch and set `stackedOn` to its Task ID, PR ID, branch, and head commit. Keep raw ADO results when the observed schema cannot be normalized safely.
 
 Keep `worktree` as the original absolute path for traceability. Set `worktreeCleanup` to `removed` after verified removal, `preserved-dirty` when local changes prevent safe removal, `removal-failed` when the clean worktree could not be removed, or `preserved` when publication did not complete and recovery rules retain the worktree.
+
+The lifecycle state names in these examples are illustrative. Always record the exact catalog discovered for the Task's project and work-item type. A `pr-published` Task may legitimately remain in its configured in-progress state when no explicit review state exists; never substitute a completed state.
 
 Preserve every pipeline attempt in the implementation evidence, including failed runs and their diagnostic summaries. The normalized `quality.pipeline` object identifies only the final successful run, whose `branch` and `sourceVersion` must match the PR source branch and its current remote head. Omit `pullRequest` entirely when no exact-SHA pipeline run succeeded.

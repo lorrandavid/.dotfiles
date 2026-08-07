@@ -63,7 +63,14 @@ A Task is agent-ready only when:
     "id": 4102,
     "revision": 17,
     "url": "<portal-url>",
-    "snapshotComplete": true
+    "snapshotComplete": true,
+    "lifecycle": {
+      "moment": "planning-started",
+      "previousState": "New",
+      "selectedState": "Active",
+      "finalState": "Active",
+      "verified": true
+    }
   },
   "tasks": [
     {
@@ -71,6 +78,9 @@ A Task is agent-ready only when:
       "title": "<title>",
       "url": "<portal-url>",
       "ready": true,
+      "state": "To Do",
+      "stateCategory": "Proposed",
+      "stateVerified": true,
       "blockedBy": []
     }
   ],
@@ -83,4 +93,4 @@ A Task is agent-ready only when:
 }
 ```
 
-For an unpublished draft, use `operation: requirement.task-graph.draft`, `classification: read-only`, and `publicationVerified: false`. Use `requirement.task-graph.publish` only after a publication attempt.
+For an unpublished draft, use `operation: requirement.task-graph.draft`, `classification: read-only`, and `publicationVerified: false`. Include the recommended lifecycle selection with `verified: false` and do not mutate it. Use `requirement.task-graph.publish` only after a publication attempt. Preserve each exact work-item type's discovered state catalog alongside the normalized handoff when lifecycle evidence is needed; the example state names are illustrative, never defaults.

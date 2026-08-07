@@ -14,6 +14,7 @@ Read [references/commands.md](references/commands.md) before executing an ADO op
 - Return command-backed data only; never invent ADO state, identities, IDs, links, policies, or permissions.
 - Resolve organization, project, repository, team, and resource IDs before mutation. Read current state first when it affects the change.
 - Derive project, repository, and related scope from supplied work-item or PR IDs when ADO can return it; ask only for values that cannot be discovered safely.
+- Before choosing a work-item state, discover the states configured for that item's project and work-item type. Never assume that `Active`, `Doing`, `Resolved`, or `Done` exists across projects or types.
 - Prefer names for user-facing output and IDs for commands and joins.
 - Add `--only-show-errors --output json` to data commands unless the user explicitly requests a table.
 - Use JMESPath `--query` only to reduce or normalize output; do not discard fields needed to verify a mutation.
@@ -36,7 +37,7 @@ Attachment download is read-only in ADO but writes a local artifact. Download on
 
 ### Mutating
 
-Commands that create or change recoverable collaboration state: create/update work items or PRs, queue pipeline runs, add discussions or PR comments, add/remove relations or linked work items, add/remove reviewers, set/reset votes, queue policy evaluation, and update iteration/team configuration.
+Commands that create or change recoverable collaboration state: create/update work items or PRs, transition work-item states, queue pipeline runs, add discussions or PR comments, add/remove relations or linked work items, add/remove reviewers, set/reset votes, queue policy evaluation, and update iteration/team configuration.
 
 Before mutation:
 
@@ -48,7 +49,20 @@ Before mutation:
 
 ### High-impact
 
-Treat PR completion/abandonment, policy bypass, source-branch deletion, work-item deletion, permanent destruction, and bulk mutations as high-impact. Require explicit authorization naming the action and target. Never infer these actions from “finish,” “clean up,” or similar wording.
+Treat PR completion/abandonment, policy bypass, source-branch deletion, terminal work-item transitions, work-item deletion, permanent destruction, and bulk mutations as high-impact. Require explicit authorization naming the action and target. Never infer these actions from “finish,” “clean up,” or similar wording.
+
+## Work-item lifecycle states
+
+Treat state selection as semantic matching, not a hard-coded string lookup:
+
+1. Read the item and capture its project, work-item type, current state, and revision.
+2. List the states configured for that exact project and type, preserving each state's `name`, `category`, and customization metadata.
+3. Prefer a repository tracker contract's explicit mapping for the lifecycle moment. Otherwise choose only a state whose name and category clearly express that moment.
+4. For work starting, choose a configured `InProgress` state. For review readiness, prefer an explicit review state; otherwise keep an `InProgress` state rather than treating a draft PR as completed. For blockage, choose an explicit blocked/on-hold state only when configured; otherwise preserve the current state and report the limitation. Never use a `Completed` or `Removed` state merely because work paused, failed, or reached a draft PR.
+5. If multiple equally suitable states remain, do not guess: return the candidates and ask the caller. If no suitable state exists, leave the item unchanged.
+6. Update only when the chosen state differs from the current state. Read the item back and verify the exact state and new revision. On a rule-validation or revision conflict, re-read the item and state catalog before deciding whether another transition is valid; never hop through intermediate states speculatively.
+
+Include the lifecycle moment, discovered candidates, selection rationale, previous state, requested state, final state, and verification status in the normalized result. State discovery is read-only; a transition is mutating. Closing, removing, or otherwise terminally transitioning an item requires explicit authorization even when the terminal state is available.
 
 ## Prerequisites
 
@@ -75,12 +89,13 @@ Use the existing `az login` session or `az devops login --organization <org-url>
 
 ## Workflow
 
-1. Classify the request as work item, requirement history/attachment, relation/link, pipeline definition/run/log, PR, PR comment, policy/reviewer/vote, or sprint/iteration.
+1. Classify the request as work item, work-item state discovery/transition, requirement history/attachment, relation/link, pipeline definition/run/log, PR, PR comment, policy/reviewer/vote, or sprint/iteration.
 2. Classify it as read-only, mutating, or high-impact.
 3. Resolve and verify defaults plus missing organization/project/repository/team/resource identifiers.
-4. Read current state when needed, then run the narrowest command from the command reference.
-5. For mutation, read back the affected resource and compare the requested fields or links.
-6. Return concise human output plus normalized JSON when requested or when another tool will consume the result.
+4. Read current state when needed. For a lifecycle transition, discover the exact type's configured state catalog and select semantically before mutation.
+5. Run the narrowest command from the command reference.
+6. For mutation, read back the affected resource and compare the requested fields or links.
+7. Return concise human output plus normalized JSON when requested or when another tool will consume the result.
 
 ## Output contract
 
@@ -112,7 +127,7 @@ For machine-readable output, normalize to this envelope while preserving the raw
 }
 ```
 
-Use stable operation names such as `work-item.create`, `work-item.update`, `work-item.comment`, `work-item.comments.list`, `work-item.revisions.list`, `work-item.updates.list`, `work-item.attachments.list`, `work-item.attachment.download`, `requirement.snapshot`, `work-item.link`, `pipeline.list`, `pipeline.run.queue`, `pipeline.run.show`, `pipeline.run.timeline`, `pipeline.run.log`, `pr.show`, `pr.update`, `pr.comment`, `pr.vote`, `pr.policy.list`, and `iteration.current`.
+Use stable operation names such as `work-item.create`, `work-item.update`, `work-item.state.list`, `work-item.state.transition`, `work-item.comment`, `work-item.comments.list`, `work-item.revisions.list`, `work-item.updates.list`, `work-item.attachments.list`, `work-item.attachment.download`, `requirement.snapshot`, `work-item.link`, `pipeline.list`, `pipeline.run.queue`, `pipeline.run.show`, `pipeline.run.timeline`, `pipeline.run.log`, `pr.show`, `pr.update`, `pr.comment`, `pr.vote`, `pr.policy.list`, and `iteration.current`.
 
 For paged operations, add a sibling `pagination` object per collection:
 

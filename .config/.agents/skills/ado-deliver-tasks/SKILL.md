@@ -5,13 +5,13 @@ description: Deliver one, several, the ready frontier, or all approved Azure Dev
 
 # Deliver ADO Tasks to Draft PRs
 
-Run the delivery control plane from the durable Azure DevOps Task graph. Select exactly what the user requested, schedule only eligible Tasks, delegate each Task's coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per Task only after both gates pass.
+Run the delivery control plane from the durable Azure DevOps Task graph. Select exactly what the user requested, schedule only eligible Tasks, keep each selected Task's ADO state aligned with its actual delivery moment, delegate each Task's coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per Task only after both gates pass.
 
 Read [references/delivery-contract.md](references/delivery-contract.md) before creating worktrees, commits, branches, queueing pipelines, or creating PRs.
 
 ## Compose the supporting skills
 
-- Use `$azure-devops-cli` for all work-item, pipeline, relation, PR, policy, reviewer, conflict, and link operations.
+- Use `$azure-devops-cli` for all work-item, state-discovery, lifecycle-transition, pipeline, relation, PR, policy, reviewer, conflict, and link operations. Discover states separately for every selected work-item type; never reuse assumed state names across types or projects.
 - Use the unchanged `$implement` skill in the current agent session for the initial implementation in each selected Task's isolated workspace. Let it own code exploration, `$tdd`, routine checks, the final relevant suite, `$code-review`, and commits. Invoke it again only through the bounded CDD remediation loop in step 8. Skill invocation is not permission to spawn a model-backed subagent.
 - Pass repository standards to `$implement`; include `$coding-standards` for TypeScript repositories.
 - Use `$deslop` on each Task diff after `$implement`, then rerun checks affected by cleanup.
@@ -23,15 +23,15 @@ Do not duplicate or modify `$implement`'s TDD or review procedure here. Own CDD 
 
 ## Authority boundary
 
-An explicit request to deliver named Tasks or “all” Tasks under a parent through draft PRs authorizes scoped worktree and branch creation, repository edits through `$implement`, test execution, commits, non-destructive pushes, queuing and monitoring the repository's configured validation pipeline for each Task branch, in-scope pipeline remediation through `$implement`, draft-PR creation after a successful run, linking each PR to its Task and parent, and removing each clean Task worktree after its PR is published and verified.
+An explicit request to deliver named Tasks or “all” Tasks under a parent through draft PRs authorizes scoped worktree and branch creation, repository edits through `$implement`, test execution, commits, non-destructive pushes, queuing and monitoring the repository's configured validation pipeline for each Task branch, in-scope pipeline remediation through `$implement`, draft-PR creation after a successful run, linking each PR to its Task and parent, routine non-terminal Task state transitions that accurately represent work started, review readiness, or a configured blocked state, one concise blocker or failure discussion comment when no fitting state exists, and removing each clean Task worktree after its PR is published and verified.
 
-It does not authorize changing acceptance criteria, expanding the selected Task set, transitioning or closing work items, voting, completing or abandoning PRs, bypassing policies, deleting branches, force-removing dirty worktrees, or force-pushing rewritten history. Require separate authorization for those actions.
+It does not authorize changing acceptance criteria, expanding the selected Task set, closing, completing, removing, or otherwise terminally transitioning work items, voting, completing or abandoning PRs, bypassing policies, deleting branches, force-removing dirty worktrees, or force-pushing rewritten history. Require separate authorization for those actions.
 
 ## Workflow
 
 ### 1. Reconstruct the delivery source
 
-Read `docs/agents/issue-tracker.md` and repository instructions. Fetch a complete current parent snapshot and every candidate Task's body, revision, relevant comments, relations, state, readiness marker, and related PRs.
+Read `docs/agents/issue-tracker.md` and repository instructions. Fetch a complete current parent snapshot and every candidate Task's body, work-item type, revision, relevant comments, relations, state, readiness marker, and related PRs. For each selected work-item type, fetch the project's configured state catalog through `$azure-devops-cli` and record names, categories, and customization metadata.
 
 Build the verified DAG from native relations and Task bodies. Stop on disagreement or cycles rather than guessing.
 
@@ -83,7 +83,17 @@ If the user explicitly requests current-workspace branch mode, process Tasks seq
 
 ### 6. Schedule the DAG
 
-Track each selected Task as `pending`, `eligible`, `running`, `pr-published`, `blocked`, or `failed`.
+Track each selected Task as `pending`, `eligible`, `running`, `pr-published`, `blocked`, or `failed`. These are delivery scheduler states, not ADO state names.
+
+Synchronize ADO state only at meaningful transitions:
+
+- On entering `running`, select the unambiguous configured `InProgress` state for that Task type and transition before implementation begins.
+- While remediation, review, or pipeline work continues, keep the Task in that in-progress state.
+- On entering `pr-published`, prefer an explicit configured review state such as “Ready for Review” or “In Review.” If none exists, retain the in-progress state; a draft PR is not completion.
+- On entering `blocked`, use an explicit configured blocked/on-hold state when one exists. Otherwise retain the current non-terminal state and add one concise discussion comment with the blocker and recovery condition.
+- On entering `failed`, use an explicit configured failed state only when the tracker contract defines it as non-terminal and appropriate for delivery failure. Otherwise retain the current state and add one concise discussion comment with the failure evidence and recovery condition.
+
+Use the repository tracker contract's explicit lifecycle mapping first. Otherwise apply `$azure-devops-cli`'s semantic state-selection protocol. Never guess among equally suitable states, never hop through speculative intermediate states, and never move a Task to a `Completed` or `Removed` category in this workflow. Read back every attempted transition. A state-update permission, rule-validation, ambiguity, or readback failure blocks that Task before further implementation or publication; preserve evidence and continue independent Tasks when safe.
 
 Keep a Task `running` throughout CDD review, pipeline execution, and remediation. Do not invent a separate scheduler state for review or remediation; transition to `blocked` or `failed` only at the stopping conditions below.
 
@@ -176,11 +186,11 @@ Render the complete PR description as Markdown with real line breaks in a tempor
 
 Link the PR to the Task and parent with `$azure-devops-cli`. Read back the title and description as well as links, policies, reviewers, source/target branches, and server conflict status. Verify the server description retains the required Markdown headings and actual line breaks; repair and re-read it before publication is considered successful if it was escaped or flattened. Do not delete a source branch while another selected Task is stacked on it.
 
-After that readback succeeds, verify the Task worktree has no staged, unstaged, or untracked changes. Remove the exact worktree with `git worktree remove <absolute-task-worktree-path>` without `--force`, then verify its path is absent from `git worktree list --porcelain`. Keep the local and remote branches. If the worktree is dirty or removal fails, do not force removal; preserve it, keep the Task `pr-published`, and report the cleanup failure with its path and status.
+After that readback succeeds, synchronize the Task to the configured review-ready state according to step 6 and read it back. If no explicit review state exists, verify that its current state remains non-terminal and accurately in progress. Only after lifecycle synchronization succeeds, verify the Task worktree has no staged, unstaged, or untracked changes. Remove the exact worktree with `git worktree remove <absolute-task-worktree-path>` without `--force`, then verify its path is absent from `git worktree list --porcelain`. Keep the local and remote branches. If the worktree is dirty or removal fails, do not force removal; preserve it, keep the Task `pr-published`, and report the cleanup failure with its path and status.
 
 ### 9. Return the delivery record
 
-Return one result for the whole requested selection, with each Task's original worktree path and cleanup result, branch, base, stack parent, implementation evidence, every pipeline attempt and the final exact-SHA result, separate Standards, Spec, and CDD evidence, remediation rounds, PR, and scheduler state. Distinguish delivered, blocked, failed, unselected, and already-delivered Tasks.
+Return one result for the whole requested selection, with each Task's original worktree path and cleanup result, branch, base, stack parent, implementation evidence, every pipeline attempt and the final exact-SHA result, separate Standards, Spec, and CDD evidence, remediation rounds, PR, scheduler state, and ADO lifecycle record. The lifecycle record must include the work-item type, discovered states, each delivery moment, previous/selected/final state, selection rationale, and readback verification. Distinguish delivered, blocked, failed, unselected, and already-delivered Tasks.
 
 ## Recovery and stopping conditions
 
@@ -194,5 +204,6 @@ Return one result for the whole requested selection, with each Task's original w
 - On local conflicts, report them separately from ADO `mergeStatus`; use `$resolving-merge-conflicts` only when authorized.
 - On post-publication worktree cleanup failure, preserve the worktree, keep the Task `pr-published`, and report its exact path, cleanliness, and removal error. Never use `git worktree remove --force`.
 - On credential or permission failure, preserve local progress and report the exact unpublished branches or PR operations.
+- On lifecycle-state ambiguity, absence of a required work-started state, transition rejection, or failed readback, preserve the current server state and Task artifacts, mark the Task `blocked`, and report the candidate states and recovery action. Never compensate by selecting a terminal state.
 
-Finish when every selected Task is either represented by a verified draft PR or explicitly reported as blocked or failed. Do not approve, complete, abandon, retarget, or transition work items unless separately requested.
+Finish when every selected Task is either represented by a verified draft PR or explicitly reported as blocked or failed. Do not approve, complete, abandon, retarget, or terminally transition work items. Perform only the verified non-terminal lifecycle transitions authorized above.

@@ -23,20 +23,21 @@ Do not delegate the authority decisions or the final Task breakdown. Supporting 
 
 Requirement inspection, codebase exploration, and drafting are read-only. Run them when the source identifier and repository are clear.
 
-Creating Tasks, adding comments, setting fields or readiness markers, and adding parent or dependency relations are mutating:
+Creating Tasks, adding comments, setting fields or readiness markers, transitioning the source requirement into a verified non-terminal in-progress state, and adding parent or dependency relations are mutating:
 
 - Treat “plan,” “triage,” or “break down” as draft-only unless the user also says create, publish, or update tickets.
-- Treat an explicit request to create/publish the resulting Tasks as authorization after the user approves the displayed breakdown.
+- Treat an explicit request to create/publish the resulting Tasks as authorization after the user approves the displayed breakdown, including a non-terminal source-requirement transition that accurately records planning has started.
 - If the initial request explicitly authorizes publication, still show the final breakdown and obtain approval when material product choices or dependency edges required judgment.
-- Never change, close, or delete the parent requirement; alter sprint assignment; or perform bulk cleanup unless explicitly requested.
+- Draft-only planning never authorizes a state mutation. Report the recommended source state without applying it.
+- Never close, complete, remove, or otherwise terminally transition the parent requirement; alter sprint assignment; or perform bulk cleanup unless explicitly requested.
 
 ## Workflow
 
 ### 1. Resolve the tracker contract
 
-Read `docs/agents/issue-tracker.md`. Resolve the organization, project, team, repository, work-item type mapping, readiness mapping, relation names, and mutation policy. If the contract is absent or incomplete, discover safe scope with `$azure-devops-cli`; ask only for values that cannot be discovered.
+Read `docs/agents/issue-tracker.md`. Resolve the organization, project, team, repository, work-item type mapping, readiness mapping, lifecycle-state mapping, relation names, and mutation policy. If the contract is absent or incomplete, discover safe scope with `$azure-devops-cli`; ask only for values that cannot be discovered.
 
-Do not invent custom fields, tags, states, or relation names.
+Fetch the configured state catalog for the source requirement's exact type and for every work-item type that may be published. Preserve names, categories, and customization metadata. Do not invent custom fields, tags, states, or relation names.
 
 ### 2. Build the source record
 
@@ -91,19 +92,23 @@ Keep the graph acyclic. Show a topological order and the initial execution front
 
 Present the numbered Task graph with titles, outcomes, acceptance criteria, test seams, and blocking edges. Resolve requested merges, splits, or edge changes.
 
-When authorized, publish Tasks in topological order so relations can reference real IDs:
+When authorized, first synchronize the source requirement to the best configured non-terminal state for active planning. Prefer the tracker contract's mapping; otherwise select the unambiguous `InProgress` state using `$azure-devops-cli`'s lifecycle protocol. If no unambiguous state exists, show the candidates and stop before publishing rather than guessing. Read the transition back before creating Tasks.
+
+Publish Tasks in topological order so relations can reference real IDs:
 
 1. Create each Task using the contract template.
 2. Add the parent relation to the source requirement.
 3. Add native predecessor/successor relations using the organization's verified relation names.
-4. Apply the configured readiness state, field, or tag.
-5. Read back every Task and relation; do not retry a partially successful mutation blindly.
+4. Apply the configured readiness state, field, or tag. When readiness uses `System.State`, select only from that Task type's discovered catalog; prefer an explicit tracker mapping, then an unambiguous ready/not-started state. Never copy the source requirement's state name onto a Task merely because it exists there.
+5. Read back every Task, state/readiness marker, and relation; do not retry a partially successful mutation blindly.
+
+Do not move the source requirement to a completed state after task publication; planning completion is not requirement delivery completion.
 
 If native dependency relations are unavailable, record stable work-item links in each Task's `Blocked by` section and report the fallback.
 
 ### 7. Produce the delivery handoff
 
-Return the normalized handoff from the task contract, including parent revision, Task IDs and URLs, dependency edges, execution frontier, unresolved risks, and publication verification. This output is a summary; the ADO Task graph remains the durable handoff.
+Return the normalized handoff from the task contract, including parent revision, Task IDs and URLs, dependency edges, execution frontier, unresolved risks, publication verification, and lifecycle evidence for the source and each published Task. Record available states, previous/selected/final state, rationale, and readback verification. This output is a summary; the ADO Task graph remains the durable handoff.
 
 ## Exit criteria
 
@@ -113,7 +118,8 @@ Finish only when:
 - no material product decision is hidden inside a Task;
 - every Task satisfies the readiness checklist;
 - every dependency edge is directional, verified, and acyclic;
-- published Tasks match the approved draft; and
+- published Tasks match the approved draft and their discovered readiness state;
+- every authorized lifecycle transition was selected from the exact work-item type's configured states and read back; and
 - a fresh agent can start from a Task ID without relying on chat history.
 
 Do not implement code or create a PR in this skill.

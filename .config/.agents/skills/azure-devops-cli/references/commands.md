@@ -6,6 +6,7 @@ Use these patterns after the core workflow in `SKILL.md`. Examples are single-li
 
 - [Shared inspection](#shared-inspection)
 - [Work items](#work-items)
+- [Work-item state discovery and transitions](#work-item-state-discovery-and-transitions)
 - [Requirement history and attachments](#requirement-history-and-attachments)
 - [Work-item relations and PR links](#work-item-relations-and-pr-links)
 - [Pipelines](#pipelines)
@@ -77,6 +78,52 @@ az boards work-item update --id <work-item-id> --org <org-url> --discussion <com
 ```
 
 Classify discussion updates as `work-item.comment`. Read the item back after creation or update.
+
+## Work-item state discovery and transitions
+
+Read the item first and retain its project, `System.WorkItemType`, `System.State`, and `rev`:
+
+```text
+az boards work-item show --id <work-item-id> --expand fields --org <org-url> --query '{id:id,project:fields."System.TeamProject",type:fields."System.WorkItemType",state:fields."System.State",revision:rev}' --only-show-errors --output json
+```
+
+List the states configured for that exact project and work-item type:
+
+```text
+az devops invoke --area wit --resource workItemTypeStates --route-parameters project=<project> type=<work-item-type> --org <org-url> --api-version 7.1-preview.1 --http-method GET --only-show-errors --output json
+```
+
+Preserve the raw response and normalize at least `name`, `category`, `order`, and `customizationType` when present. The route value for a type containing spaces must be passed as one native argument and URL-encoded by the active client; do not manually concatenate a REST URL. If the resource name cannot be resolved, discover the current WIT resources read-only with `az devops invoke --query "[?area=='wit']" --only-show-errors --output json` and select the route whose template ends in `workitemtypes/{type}/states`.
+
+Choose a state using the lifecycle protocol in `SKILL.md`. Do not infer availability from another item or type in the same project. Transition only to the selected configured state:
+
+```text
+az boards work-item update --id <work-item-id> --org <org-url> --state <configured-state-name> --only-show-errors --output json
+```
+
+Then read the item back and verify the exact state and revision. Normalize the operation as:
+
+```json
+{
+  "operation": "work-item.state.transition",
+  "classification": "mutating",
+  "id": 4201,
+  "type": "Task",
+  "moment": "work-started",
+  "previousState": "To Do",
+  "availableStates": [
+    { "name": "To Do", "category": "Proposed" },
+    { "name": "Doing", "category": "InProgress" },
+    { "name": "Done", "category": "Completed" }
+  ],
+  "selectedState": "Doing",
+  "selectionReason": "The configured InProgress state for this Task type",
+  "finalState": "Doing",
+  "verified": true
+}
+```
+
+If no unambiguous state fits, use `selectedState: null`, leave the item unchanged, and return the candidates and reason. Do not test transitions by making speculative updates.
 
 ## Requirement history and attachments
 
