@@ -34,7 +34,15 @@
     ]
   },
   "implementation": { "skill": "implement", "status": "completed" },
-  "commits": ["<sha>"],
+  "history": {
+    "targetHead": "<sha>",
+    "targetIsAncestor": true,
+    "taskCommitCount": 1,
+    "squashedCommit": "<sha>",
+    "subject": "feat(#4201): revoke active sessions",
+    "remoteVerified": true
+  },
+  "commits": ["<single-squashed-sha>"],
   "acceptanceCriteria": [
     { "criterion": "<observable behavior>", "status": "passed", "evidence": "<test or inspection>" }
   ],
@@ -155,7 +163,7 @@ Render the following template to a UTF-8 Markdown file with actual LF line break
 - <Explicit item or “None”.>
 ```
 
-Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep the PR draft while known required work remains. Read the PR back and verify that its description contains the section headings on separate lines and no literal `\n` sequences.
+Keep every PR limited to one Task. Before creating it, require the Task-owned range from the freshly fetched target head to the source head to contain exactly one squashed commit, require that target head to be an ancestor of the source, and require the successful pipeline source version and remote source head to equal that commit. For stacked PRs, predecessor commits are outside this range and must not be rewritten. Do not hide failing or skipped checks. Keep the PR draft while known required work remains. Read the PR back and verify that its description contains the section headings on separate lines and no literal `\n` sequences.
 
 ## Normalized delivery result
 
@@ -183,7 +191,14 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
       "id": 4201,
       "status": "pr-published",
       "worktree": "<absolute-path>",
-      "worktreeCleanup": "removed",
+      "worktreeCleanup": {
+        "result": "removed",
+        "gitRegistered": false,
+        "pathExists": false,
+        "temporaryFilesRemoved": true,
+        "pruned": true,
+        "commandsVerified": true
+      },
       "branch": "feat/4201-revoke-active-sessions",
       "baseBranch": "main",
       "stackedOn": null,
@@ -194,8 +209,15 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
         "verified": true
       },
       "commitSubjects": ["feat(#4201): revoke active sessions"],
+      "history": {
+        "targetHead": "<sha>",
+        "targetIsAncestor": true,
+        "taskCommitCount": 1,
+        "squashedCommit": "<sha>",
+        "remoteVerified": true
+      },
       "implementation": { "skill": "implement", "status": "completed" },
-      "commits": ["<sha>"],
+      "commits": ["<single-squashed-sha>"],
       "quality": {
         "tests": "passed",
         "typecheck": "passed",
@@ -241,8 +263,8 @@ Keep every PR limited to one Task. Do not hide failing or skipped checks. Keep t
 
 For a stacked Task, set `baseBranch` and `pullRequest.targetBranch` to the predecessor's source branch and set `stackedOn` to its Task ID, PR ID, branch, and head commit. Keep raw ADO results when the observed schema cannot be normalized safely.
 
-Keep `worktree` as the original absolute path for traceability. Set `worktreeCleanup` to `removed` after verified removal, `preserved-dirty` when local changes prevent safe removal, `removal-failed` when the clean worktree could not be removed, or `preserved` when publication did not complete and recovery rules retain the worktree.
+Keep `worktree` as the original absolute path for traceability. Populate `worktreeCleanup` only after the final cleanup sweep. Set `result` to `removed` only when the exact path is absent from both `git worktree list --porcelain` and the filesystem after pruning. Use `preserved-dirty` when local changes prevent safe removal, `removal-failed` when the clean worktree or directory could not be removed safely, or `preserved` when publication did not complete and recovery rules retain the worktree. Include the observed git-registration and filesystem-existence booleans plus any cleanup error. A published Task with any result other than `removed` makes the overall operation `delivered-with-cleanup-failures`, not fully complete.
 
 The lifecycle state names in these examples are illustrative. Always record the exact catalog discovered for the Task's project and work-item type. A `pr-published` Task may legitimately remain in its configured in-progress state when no explicit review state exists; never substitute a completed state.
 
-Preserve every pipeline attempt in the implementation evidence, including failed runs and their diagnostic summaries. The normalized `quality.pipeline` object identifies only the final successful run, whose `branch` and `sourceVersion` must match the PR source branch and its current remote head. Omit `pullRequest` entirely when no exact-SHA pipeline run succeeded.
+Preserve every pipeline attempt in the implementation evidence, including failed runs and their diagnostic summaries. The normalized `quality.pipeline` object identifies only the final successful run, whose `branch` and `sourceVersion` must match the PR source branch, its current remote head, and `history.squashedCommit`. Record the freshly fetched PR target head in `history.targetHead`; `history.taskCommitCount` must be `1` at creation time. Omit `pullRequest` entirely when the history gate or exact-SHA pipeline gate did not succeed.

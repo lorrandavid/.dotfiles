@@ -5,7 +5,7 @@ description: Deliver one, several, the ready frontier, or all approved Azure Dev
 
 # Deliver ADO Tasks to Draft PRs
 
-Run the delivery control plane from the durable Azure DevOps Task graph. Select exactly what the user requested, schedule only eligible Tasks, keep each selected Task's ADO state aligned with its actual delivery moment, delegate each Task's coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per Task only after both gates pass.
+Run the delivery control plane from the durable Azure DevOps Task graph. Select exactly what the user requested, schedule only eligible Tasks, keep each selected Task's ADO state aligned with its actual delivery moment, delegate each Task's coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per Task only after both gates pass and its Task-owned history is rebased and squashed to one commit.
 
 Read [references/delivery-contract.md](references/delivery-contract.md) before creating worktrees, commits, branches, queueing pipelines, or creating PRs.
 
@@ -25,7 +25,11 @@ Do not duplicate or modify `$implement`'s TDD or review procedure here. Own CDD 
 
 An explicit request to deliver named Tasks or “all” Tasks under a parent through draft PRs authorizes scoped worktree and branch creation, repository edits through `$implement`, test execution, commits, non-destructive pushes, queuing and monitoring the repository's configured validation pipeline for each Task branch, in-scope pipeline remediation through `$implement`, draft-PR creation after a successful run, linking each PR to its Task and parent, routine non-terminal Task state transitions that accurately represent work started, review readiness, or a configured blocked state, one concise blocker or failure discussion comment when no fitting state exists, and removing each clean Task worktree after its PR is published and verified.
 
-It does not authorize changing acceptance criteria, expanding the selected Task set, closing, completing, removing, or otherwise terminally transitioning work items, voting, completing or abandoning PRs, bypassing policies, deleting branches, force-removing dirty worktrees, or force-pushing rewritten history. Require separate authorization for those actions.
+It also authorizes rewriting a Task branch only before its PR exists, solely to rebase it onto its verified target and squash its Task-owned history to one commit. When that unpublished branch already exists remotely because a pipeline was run, update it only with `--force-with-lease` pinned to the remote SHA just read back; never use plain `--force`. This narrow authorization ends as soon as the PR is created.
+
+For every successfully published Task, cleanup is part of delivery, not optional follow-up. The delivery request authorizes removing the exact clean Task worktree, its worktree directory, temporary PR-description/evidence files created by this workflow, and stale git worktree administrative records. It does not authorize deleting the local or remote Task branch or recursively deleting an unverified/non-empty directory.
+
+It does not authorize changing acceptance criteria, expanding the selected Task set, closing, completing, removing, or otherwise terminally transitioning work items, voting, completing or abandoning PRs, bypassing policies, deleting branches, force-removing dirty worktrees, or any other force-push or rewritten-history publication. Require separate authorization for those actions.
 
 ## Workflow
 
@@ -65,7 +69,7 @@ Choose the Conventional Commit type from the actual change:
 
 Use the same concise, imperative description across artifacts:
 
-- Every commit subject and the PR title: `<type>(#<ADO_WORK_ITEM_ID>): <brief description>`
+- The single final Task-owned commit subject and the PR title: `<type>(#<ADO_WORK_ITEM_ID>): <brief description>`
 - Branch: `<type>/<ADO_WORK_ITEM_ID>-<kebab-description>`
 - Worktree directory: `<repository>-wt-<ADO_WORK_ITEM_ID>-<kebab-description>`
 
@@ -108,9 +112,9 @@ For each scheduling wave:
 1. Compute the eligible frontier.
 2. Process eligible Tasks sequentially in the current agent session by default, while retaining one isolated worktree per Task. Use isolated model-backed workers only when the user explicitly authorizes subagents and the harness proves they will use the exact parent model and reasoning tier.
 3. Invoke `$implement` in the current session for the initial implementation of each Task.
-4. Verify, deslop, run the CDD gate, perform bounded remediation when required, finalize and push the branch, run the pre-PR pipeline against the pushed SHA, remediate and repeat until it succeeds, then create, link, and read back that Task's draft PR.
-5. Remove and verify removal of the Task's clean worktree.
-6. Mark `pr-published` only after the successful pipeline run, PR, and branch are verified; then recompute the frontier.
+4. Verify, deslop, run the CDD gate, perform bounded remediation when required, rebase and squash the Task-owned history to one commit, push the branch, run the pre-PR pipeline against that exact pushed SHA, remediate and repeat the history and validation gates until it succeeds, then create, link, and read back that Task's draft PR.
+5. Run the mandatory cleanup procedure for the Task's clean worktree and verify both git deregistration and filesystem removal.
+6. Mark `pr-published` only after the successful pipeline run and PR are verified. Track cleanup independently as `removed` or an explicit cleanup failure; then recompute the frontier.
 
 Do not start a dependent Task merely because its predecessor has code or commits. The predecessor's PR must exist and its source branch must be available.
 
@@ -134,7 +138,7 @@ Pass `$implement` only the current Task plus the context it needs:
 - required Conventional Commit subject pattern, PR title, and branch name;
 - authority boundaries and prohibited actions.
 
-Require `$implement` to return commits, criterion-level evidence, validation results, separate Standards and Spec review findings, and unresolved items. It must not implement sibling or successor Tasks.
+Require `$implement` to return commits, criterion-level evidence, validation results, separate Standards and Spec review findings, and unresolved items. Its intermediate commits may remain during implementation and remediation, but the delivery controller must squash them before publication. It must not implement sibling or successor Tasks.
 
 Build the CDD review brief separately; do not require `$implement` to invoke or understand the CDD skill. Include:
 
@@ -161,9 +165,11 @@ Allow at most two CDD remediation rounds per Task. If the final result is still 
 
 Append every CDD attempt and remediation result to the delivery evidence; never overwrite the initial finding set with the final pass.
 
-After the CDD gate passes, use `$make-pr-easy-to-review` with the delivery contract to finalize the branch history and prepare reviewer guidance. Include the CDD verdict, reader tasks, metric provenance, and unresolved concerns in the prepared PR description; add the final pipeline evidence only after the exact-SHA run succeeds.
+After the CDD gate passes, use `$make-pr-easy-to-review` with the delivery contract to prepare reviewer guidance and finalize history. Fetch and read back the intended target branch, rebase the Task branch onto that exact target head, and squash all commits in the Task-owned range `target-head..HEAD` to exactly one commit with the required subject. For a stacked PR, the target is the predecessor's published source branch; do not squash or rewrite predecessor commits. Verify the resulting range contains one commit, the target head is an ancestor of `HEAD`, the worktree is clean, and the diff still matches the reviewed Task diff. If the rebase changes the effective diff or requires conflict resolution, rerun affected and final checks, `$deslop`, Standards and Spec review, and the CDD gate; do not silently resolve conflicts outside the authorized conflict workflow.
 
-Push non-destructively and verify the remote Task branch resolves to the expected local `HEAD`. Queue the configured pipeline through `$azure-devops-cli` with both the Task branch and that exact commit SHA. Capture the run ID returned by the queue operation; on an ambiguous response, inspect server state for an exact pipeline, branch, and source-version match before retrying because queuing a run is non-idempotent.
+Include the CDD verdict, reader tasks, metric provenance, and unresolved concerns in the prepared PR description; add the final pipeline evidence only after the exact-SHA run succeeds.
+
+Push and verify the remote Task branch resolves to the expected local `HEAD`. Use a normal push when it is a fast-forward or the branch is new. If pre-PR squashing or rebasing rewrote an already-pushed pipeline branch, first read its remote SHA and use `--force-with-lease=<branch>:<observed-sha>`; abort on lease failure or ambiguous remote state. Never rewrite a branch after its PR exists. Queue the configured pipeline through `$azure-devops-cli` with both the Task branch and that exact commit SHA. Capture the run ID returned by the queue operation; on an ambiguous response, inspect server state for an exact pipeline, branch, and source-version match before retrying because queuing a run is non-idempotent.
 
 Poll that run to a terminal state without opening a PR. Accept only `status: completed` with `result: succeeded`. Treat `partiallySucceeded`, `failed`, and `canceled` as non-passing.
 
@@ -173,24 +179,38 @@ For each non-passing run:
 2. Distinguish an actionable code or repository-pipeline failure from infrastructure, permission, unavailable-agent, cancellation, or external-service failure.
 3. For an actionable in-scope failure, invoke the unchanged `$implement` skill in the same Task worktree with a bounded pipeline-remediation packet containing the exact failed steps, errors, relevant logs, failing SHA, original acceptance criteria, non-goals, and validation commands.
 4. Verify the remediation stays within the Task, require `$implement` to commit it, rerun affected and final local checks, rerun `$deslop`, rerun Standards and Spec review through `$implement`, and rerun the CDD gate.
-5. Run `$make-pr-easy-to-review` again if history or reviewer guidance changed, push non-destructively, verify the new remote SHA, and queue a new pipeline run pinned to it.
+5. Run `$make-pr-easy-to-review` again, re-fetch the target, rebase if needed, and re-squash the complete Task-owned range to exactly one commit. Re-verify ancestry, commit count, subject, clean state, and reviewed diff; then update the unpublished remote branch using the lease-protected rule above, verify the new remote SHA, and queue a new pipeline run pinned to it.
 
 Repeat without an arbitrary retry cap while each failure yields an actionable in-scope remediation and measurable progress. Never reuse a successful result from an older SHA. If remediation would expand scope, violate accepted requirements or non-goals, or cannot address an infrastructure, authentication, permission, agent-capacity, cancellation, or external-service failure, mark the Task `blocked`, preserve its worktree and evidence, and do not create a PR.
 
 Append the successful terminal run to the evidence. Verify its `sourceBranch` and `sourceVersion` equal the Task branch and current remote `HEAD`. Add that run's ID, URL, definition, source SHA, and result to the prepared PR description without changing branch contents or history.
 
-Render the complete PR description as Markdown with real line breaks in a temporary `.md` file. Pass the file's contents as one quoted CLI argument; never flatten the Markdown, join its lines with spaces, or pass literal `\n` escape sequences. Inspect the rendered file before creation. Only then create the **draft** PR:
+Immediately before PR creation, fetch and read back the target branch again. Verify it still resolves to the target head used by the rebase, `target-head..HEAD` still contains exactly one Task-owned commit with the required subject, local `HEAD` equals the remote source SHA, and the successful pipeline ran for that exact SHA. If the target moved, rebase and squash again, repeat every affected review/check gate, update the unpublished remote branch with the lease-protected rule, and obtain a new successful exact-SHA pipeline run. Do not create the PR until all of these conditions hold.
+
+Render the complete PR description as Markdown with real line breaks in a temporary `.md` file outside the Task worktree. Pass the file's contents as one quoted CLI argument; never flatten the Markdown, join its lines with spaces, or pass literal `\n` escape sequences. Inspect the rendered file before creation and remove it after the final PR readback. Only then create the **draft** PR:
 
 - Root Task: source is the Task branch; target is the configured base branch.
 - Single-predecessor Task: source is the Task branch; target is the predecessor's published source branch.
 
 Link the PR to the Task and parent with `$azure-devops-cli`. Read back the title and description as well as links, policies, reviewers, source/target branches, and server conflict status. Verify the server description retains the required Markdown headings and actual line breaks; repair and re-read it before publication is considered successful if it was escaped or flattened. Do not delete a source branch while another selected Task is stacked on it.
 
-After that readback succeeds, synchronize the Task to the configured review-ready state according to step 6 and read it back. If no explicit review state exists, verify that its current state remains non-terminal and accurately in progress. Only after lifecycle synchronization succeeds, verify the Task worktree has no staged, unstaged, or untracked changes. Remove the exact worktree with `git worktree remove <absolute-task-worktree-path>` without `--force`, then verify its path is absent from `git worktree list --porcelain`. Keep the local and remote branches. If the worktree is dirty or removal fails, do not force removal; preserve it, keep the Task `pr-published`, and report the cleanup failure with its path and status.
+After that readback succeeds, synchronize the Task to the configured review-ready state according to step 6 and read it back. If no explicit review state exists, verify that its current state remains non-terminal and accurately in progress.
+
+Then run this mandatory cleanup procedure before returning the overall delivery result:
+
+1. Remove workflow-created temporary files. Verify the Task worktree has no staged, unstaged, or untracked changes with both `git status --porcelain` and an explicit untracked-file check.
+2. Resolve and record the exact absolute Task worktree path. Confirm it matches the path created for this Task and appears in `git worktree list --porcelain`; never operate on the primary worktree or an unverified path.
+3. From outside that worktree, run `git worktree remove <absolute-task-worktree-path>` without `--force`.
+4. Verify the path is absent from `git worktree list --porcelain` **and** no longer exists on the filesystem. A successful git exit code alone is insufficient.
+5. Run `git worktree prune`, inspect the worktree list again, and verify no stale administrative entry remains for the exact path.
+6. If git has deregistered the worktree but the exact directory still exists, inspect it. Remove it with `rmdir` only when it is empty; never use `rm -rf`. Reverify filesystem absence.
+7. Keep the local and remote Task branches. Record cleanup as `removed` only after every verification passes.
+
+After processing all selected Tasks, perform a final cleanup sweep over every Task that reached `pr-published`, including Tasks published earlier in the run. Re-run the git-list and filesystem checks for each original path and retry the safe cleanup procedure when necessary. Do not claim the overall delivery is fully complete while a published Task worktree remains registered or its directory remains on disk. If a worktree is dirty, its path is unsafe or ambiguous, or safe removal still fails, preserve it, keep the Task `pr-published`, set the cleanup result to `preserved-dirty` or `removal-failed`, and prominently report the exact path, status output, and removal error.
 
 ### 9. Return the delivery record
 
-Return one result for the whole requested selection, with each Task's original worktree path and cleanup result, branch, base, stack parent, implementation evidence, every pipeline attempt and the final exact-SHA result, separate Standards, Spec, and CDD evidence, remediation rounds, PR, scheduler state, and ADO lifecycle record. The lifecycle record must include the work-item type, discovered states, each delivery moment, previous/selected/final state, selection rationale, and readback verification. Distinguish delivered, blocked, failed, unselected, and already-delivered Tasks.
+Return one result for the whole requested selection only after the final cleanup sweep, with each Task's original worktree path, whether that path still exists, whether git still registers it, cleanup commands/results, cleanup result, branch, base, stack parent, final rebased target SHA, squashed commit SHA and subject, implementation evidence, every pipeline attempt and the final exact-SHA result, separate Standards, Spec, and CDD evidence, remediation rounds, PR, scheduler state, and ADO lifecycle record. The lifecycle record must include the work-item type, discovered states, each delivery moment, previous/selected/final state, selection rationale, and readback verification. Distinguish delivered, blocked, failed, unselected, and already-delivered Tasks.
 
 ## Recovery and stopping conditions
 
@@ -202,8 +222,9 @@ Return one result for the whole requested selection, with each Task's original w
 - On a CDD remedy that conflicts with acceptance criteria, non-goals, or the accepted parent revision, stop remediation and return to planning.
 - On parent drift, invalid dependencies, missing seams, or scope ambiguity, return to planning.
 - On local conflicts, report them separately from ADO `mergeStatus`; use `$resolving-merge-conflicts` only when authorized.
-- On post-publication worktree cleanup failure, preserve the worktree, keep the Task `pr-published`, and report its exact path, cleanliness, and removal error. Never use `git worktree remove --force`.
+- On post-publication worktree cleanup failure, retry during the final cleanup sweep. If safe removal still fails, preserve the worktree, keep the Task `pr-published`, classify the overall result as delivered-with-cleanup-failures rather than fully complete, and report its exact path, filesystem existence, git registration, cleanliness, and removal error. Never use `git worktree remove --force` or `rm -rf`.
+- On a pre-PR rebase conflict, target movement, lease failure, or history-verification failure, do not open the PR. Preserve local progress and report the exact target/source SHAs and recovery action.
 - On credential or permission failure, preserve local progress and report the exact unpublished branches or PR operations.
 - On lifecycle-state ambiguity, absence of a required work-started state, transition rejection, or failed readback, preserve the current server state and Task artifacts, mark the Task `blocked`, and report the candidate states and recovery action. Never compensate by selecting a terminal state.
 
-Finish when every selected Task is either represented by a verified draft PR or explicitly reported as blocked or failed. Do not approve, complete, abandon, retarget, or terminally transition work items. Perform only the verified non-terminal lifecycle transitions authorized above.
+Finish when every selected Task is either represented by a verified draft PR or explicitly reported as blocked or failed, and the final cleanup sweep has run. A published Task is cleanly finished only when its exact worktree path is absent from both git's worktree registry and the filesystem; otherwise return delivered-with-cleanup-failures. Do not approve, complete, abandon, retarget, or terminally transition work items. Perform only the verified non-terminal lifecycle transitions authorized above.
