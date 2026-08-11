@@ -1,11 +1,11 @@
 ---
 name: ado-deliver-tasks
-description: Deliver one, several, the ready frontier, or all approved Azure DevOps Tasks through implementation and linked draft pull requests. Use when Codex must select Task scope, enforce a dependency DAG, run independent Tasks concurrently in isolated worktrees, delegate coding to the implement skill, gate final Task diffs through Cognitive-Driven Development review and a successful branch pipeline, create one PR per Task, and stack dependent PRs from published predecessor branches without completing them.
+description: Deliver one, several, the ready frontier, or all approved Azure DevOps Tasks, Bugs, or tracker-defined deliverables through implementation and linked draft pull requests. Use when Codex must require an approved implementation plan, select delivery scope, enforce a dependency DAG, work in isolated worktrees, run implementation and review gates, pass the branch pipeline, create one PR per deliverable, and stack dependent PRs without completing them.
 ---
 
 # Deliver ADO Tasks to Draft PRs
 
-Run the delivery control plane from the durable Azure DevOps Task graph. Select exactly what the user requested, schedule only eligible Tasks, keep each selected Task's ADO state aligned with its actual delivery moment, delegate each Task's coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per Task only after both gates pass and its Task-owned history is rebased and squashed to one commit.
+Run the delivery control plane from approved Azure DevOps plans and their durable delivery graph. Select exactly what the user requested, schedule only eligible deliverables, keep each selected work item's ADO state aligned with its actual delivery moment, delegate each coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per deliverable only after both gates pass and its owned history is rebased and squashed to one commit.
 
 Read [references/delivery-contract.md](references/delivery-contract.md) before creating worktrees, commits, branches, queueing pipelines, or creating PRs.
 
@@ -35,7 +35,7 @@ It does not authorize changing acceptance criteria, expanding the selected Task 
 
 ### 1. Reconstruct the delivery source
 
-Read `docs/agents/issue-tracker.md` and repository instructions. Fetch a complete current parent snapshot and every candidate Task's body, work-item type, revision, relevant comments, relations, state, readiness marker, and related PRs. For each selected work-item type, fetch the project's configured state catalog through `$azure-devops-cli` and record names, categories, and customization metadata.
+Read `docs/agents/issue-tracker.md` and repository instructions. Fetch a complete current parent snapshot when one exists and every candidate deliverable's body, work-item type, revision, relevant comments, relations, state, readiness marker, approved-plan comments, and related PRs. For each selected work-item type, fetch the project's configured state catalog through `$azure-devops-cli` and record names, categories, and customization metadata.
 
 Build the verified DAG from native relations and Task bodies. Stop on disagreement or cycles rather than guessing.
 
@@ -45,7 +45,7 @@ Resolve the repository's configured pre-PR validation pipeline ID, name, require
 
 Interpret selection literally:
 
-- A Task ID or explicit list selects only those Tasks.
+- A deliverable ID or explicit list selects only those Tasks, Bugs, or tracker-defined deliverables.
 - “Frontier” selects currently ready Tasks with no unsatisfied predecessors.
 - “All” with a parent selects every agent-ready descendant Task not already delivered, including Tasks that will become eligible later.
 - A parent ID without “all,” “frontier,” or Task IDs is ambiguous: show the candidate set and ask which scope to deliver.
@@ -54,7 +54,14 @@ Never implement an unselected predecessor merely to unblock a selected Task. If 
 
 ### 3. Enforce readiness
 
-Require every selected Task to have a stable parent and accepted revision, observable acceptance criteria, explicit non-goals, agreed public test seams, resolved product decisions, validation expectations, a resolved pre-PR pipeline, and a valid place in the DAG.
+Require every selected deliverable to have an approved implementation plan. Accept either:
+
+- a child-deliverable body that references its parent's verified approved-plan comment and accepted source revision; or
+- the latest non-superseded `Approved implementation plan` comment on that deliverable, with `Planning mode: in-place deliverable` and an accepted revision consistent with its current material content.
+
+Read the referenced comment back. Require its hierarchical decomposition, outcome, observable acceptance criteria, explicit non-goals, agreed public test seams, resolved product and engineering decisions, dependencies, validation expectations, residual risks, and delivery-unit decision to agree with the selected work item. Also require a resolved pre-PR pipeline and a valid place in the DAG. A readiness state or detailed card body without verified approval evidence is insufficient.
+
+If approval evidence is absent, superseded, stale, incomplete, or inconsistent, invoke `$ado-plan-requirement` against that selected work item in draft mode and do not start implementation. A delivery request does not authorize publishing the plan, changing criteria, creating sibling or child work, or setting readiness. Present the draft for approval and require explicit authorization to publish it. After publication, reconstruct the delivery source and enforce readiness again before continuing the already-authorized delivery scope.
 
 If the parent changed materially after the accepted revision, return to `$ado-plan-requirement`. Treat ADO-recorded seams as pre-agreed for `$tdd`; do not ask the user to reconfirm them.
 
@@ -124,12 +131,13 @@ If a Task has multiple predecessors, do not invent a synthetic merge. Wait until
 
 A failed Task blocks its descendants but not independent branches of the DAG. Continue other eligible work when safe and report the blocked subtree.
 
-### 7. Build one implementation packet per Task
+### 7. Build one implementation packet per deliverable
 
-Pass `$implement` only the current Task plus the context it needs:
+Pass `$implement` only the current Task, Bug, or tracker-defined deliverable plus the context it needs:
 
 - parent snapshot, accepted revision, and URLs;
-- current Task body, revision, relevant comments, and URL;
+- current deliverable body, revision, relevant comments, and URL;
+- approved-plan comment ID or URL, accepted revision, hierarchical decomposition, and planning mode;
 - predecessor IDs, PRs, branches, and the chosen base commit;
 - acceptance criteria, non-goals, and pre-agreed test seams;
 - validation commands, repository instructions, standards, glossary, and ADRs;
@@ -220,7 +228,7 @@ Return one result for the whole requested selection only after the final cleanup
 - On a non-passing pipeline with an actionable in-scope cause, keep remediating and rerunning the complete post-change validation sequence until the exact pushed SHA succeeds.
 - On a pipeline blocked by infrastructure, authentication, permission, agent capacity, cancellation, external service, missing logs, or ambiguous definition, preserve the worktree and all run evidence, mark the Task `blocked`, and never create its PR or unlock its descendants.
 - On a CDD remedy that conflicts with acceptance criteria, non-goals, or the accepted parent revision, stop remediation and return to planning.
-- On parent drift, invalid dependencies, missing seams, or scope ambiguity, return to planning.
+- On missing, stale, superseded, or inconsistent approval evidence; parent drift; invalid dependencies; missing seams; or scope ambiguity, return to `$ado-plan-requirement` before implementation.
 - On local conflicts, report them separately from ADO `mergeStatus`; use `$resolving-merge-conflicts` only when authorized.
 - On post-publication worktree cleanup failure, retry during the final cleanup sweep. If safe removal still fails, preserve the worktree, keep the Task `pr-published`, classify the overall result as delivered-with-cleanup-failures rather than fully complete, and report its exact path, filesystem existence, git registration, cleanliness, and removal error. Never use `git worktree remove --force` or `rm -rf`.
 - On a pre-PR rebase conflict, target movement, lease failure, or history-verification failure, do not open the PR. Preserve local progress and report the exact target/source SHAs and recovery action.

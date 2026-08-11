@@ -6,6 +6,12 @@
 {
   "taskId": 4201,
   "sourceRevision": 6,
+  "planning": {
+    "mode": "in-place-deliverable",
+    "acceptedRevision": 6,
+    "approvedPlanComment": "<comment-id-or-url>",
+    "verified": true
+  },
   "lifecycle": {
     "workItemType": "Task",
     "availableStates": [
@@ -125,6 +131,7 @@ Render the following template to a UTF-8 Markdown file with actual LF line break
 
 - Parent: AB#<parent-id> — <title>
 - Task: AB#<task-id> — <title>
+- Approved plan: <comment-id-or-url> for accepted revision <revision>
 - Stacked on: <predecessor PR and branch, or “base branch”>
 
 ## What changed
@@ -190,6 +197,12 @@ Keep every PR limited to one Task. Before creating it, require the Task-owned ra
     {
       "id": 4201,
       "status": "pr-published",
+      "planning": {
+        "mode": "requirement-decomposition",
+        "acceptedRevision": 17,
+        "approvedPlanComment": "<comment-id-or-url>",
+        "verified": true
+      },
       "worktree": "<absolute-path>",
       "worktreeCleanup": {
         "result": "removed",

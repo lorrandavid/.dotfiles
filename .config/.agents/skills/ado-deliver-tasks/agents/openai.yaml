@@ -1,4 +1,4 @@
 interface:
-  display_name: "Deliver ADO Tasks"
-  short_description: "Deliver ADO Tasks through validated draft PRs"
-  default_prompt: "Use $ado-deliver-tasks to implement selected Azure DevOps Tasks, rebase and squash each Task branch, pass the exact-branch Azure Pipeline, create linked draft or stacked PRs, and verify removal of every published Task worktree and directory before finishing."
+  display_name: "Deliver ADO Work Items"
+  short_description: "Deliver approved ADO work to draft PRs"
+  default_prompt: "Use $ado-deliver-tasks to verify approved plans and deliver selected Azure DevOps Tasks, Bugs, or configured deliverables through validated draft PRs."
