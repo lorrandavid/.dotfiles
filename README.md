@@ -17,7 +17,7 @@ Configs currently managed (folders under `./.config/`):
 - `wezterm`
 - `zed`
 
-The `.config/shared` directory is deprecated and retained only for compatibility. The installers intentionally ignore it. Global agent configuration lives under `.config/.agents` and is linked to `~/.agents` separately.
+The `.config/shared` directory is deprecated and retained only for compatibility. The installers intentionally ignore it. Global agent configuration lives under `.config/.agents`; the installers link that directory to `~/.agents`, link its `AGENTS.md` to `~/.codex/AGENTS.md`, and link `.config/.copilot/copilot-instructions.md` into `~/.copilot`. Copilot's instruction file imports the same shared `AGENTS.md`, so both harnesses load one versioned policy.
 
 ## Prerequisites
 

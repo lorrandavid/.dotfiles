@@ -25,6 +25,15 @@ Do not use jargon and speak coherently. State it more simply and concisely, like
 - **Error handling**: Prefer typed error results (`Result<T, E>`, discriminated unions) over thrown exceptions for expected failure modes. Do not add speculative `try`/`catch` blocks with fallback behavior. Handle real errors explicitly, and otherwise fail clearly rather than masking problems with fallbacks unless explicitly asked.
 - **If you touch a file, fix any lint or type issues you find in that file.**
 
+# Node.js Tooling
+
+- When `nub` is available on `PATH`, prefer it for Node.js version provisioning and for restoring an existing dependency tree, especially in Git worktrees where its machine-wide cache can be reused.
+- Respect the repository's existing Node version pin. Use `nub node install` without a version to provision that pin; do not create or change `.node-version`, `.nvmrc`, `.tool-versions`, or `package.json` engine fields unless the task requires it.
+- Use `nub install --frozen-lockfile` only when `package.json` and the committed lockfile already describe the desired dependency tree. The command must not change manifests, lockfiles, package-manager configuration, or build-script approvals.
+- Use the repository's originating package manager directly for any dependency-tree change, including adding, removing, updating, deduplicating, or regenerating dependencies or lockfiles. Determine it from the explicit `packageManager`/`devEngines.packageManager` pin and the committed lockfile; if those disagree or are ambiguous, stop and report the conflict.
+- Do not use Nub commands that mutate dependency or package-manager state for those changes, including `nub add`, `remove`, `update`, `dedupe`, `import`, `pm use`, `pm pin`, or `approve-builds`.
+- If `nub` is unavailable, continue with the repository's existing Node and package-manager tooling. Do not install Nub unless the user explicitly asks.
+
 ## Testing
 
 - Write tests that verify semantically correct behavior

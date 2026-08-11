@@ -26,6 +26,10 @@ CONFIG_TARGET="${XDG_CONFIG_HOME:-$HOME/.config}"
 BACKUP_DIR="$DOTFILES_DIR/backups"
 AGENTS_SOURCE="$CONFIG_SOURCE/.agents"
 AGENTS_TARGET="$HOME/.agents"
+CODEX_AGENTS_SOURCE="$AGENTS_SOURCE/AGENTS.md"
+CODEX_AGENTS_TARGET="$HOME/.codex/AGENTS.md"
+COPILOT_INSTRUCTIONS_SOURCE="$CONFIG_SOURCE/.copilot/copilot-instructions.md"
+COPILOT_INSTRUCTIONS_TARGET="$HOME/.copilot/copilot-instructions.md"
 
 # Colors
 BLUE='\033[0;34m'
@@ -280,10 +284,9 @@ do_link_codex_skills() {
             real_source=$(readlink -f "$AGENTS_SOURCE")
             if [[ "$existing_link" == "$real_source" ]]; then
                 write_success "agents already linked correctly"
-                return
+            else
+                rm -f "$AGENTS_TARGET"
             fi
-
-            rm -f "$AGENTS_TARGET"
         else
             mkdir -p "$backup_path"
             write_warning "Backing up existing agents to $backup_path/agents"
@@ -291,31 +294,112 @@ do_link_codex_skills() {
         fi
     fi
 
-    mkdir -p "$(dirname "$AGENTS_TARGET")"
-    if ln -s "$AGENTS_SOURCE" "$AGENTS_TARGET" 2>/dev/null; then
-        write_success "agents linked: $AGENTS_TARGET -> $AGENTS_SOURCE"
+    if [[ ! -e "$AGENTS_TARGET" && ! -L "$AGENTS_TARGET" ]]; then
+        mkdir -p "$(dirname "$AGENTS_TARGET")"
+        if ln -s "$AGENTS_SOURCE" "$AGENTS_TARGET" 2>/dev/null; then
+            write_success "agents linked: $AGENTS_TARGET -> $AGENTS_SOURCE"
+        else
+            write_error "Failed to link agents"
+        fi
+    fi
+
+    if [[ -e "$CODEX_AGENTS_TARGET" || -L "$CODEX_AGENTS_TARGET" ]]; then
+        if is_symlink "$CODEX_AGENTS_TARGET"; then
+            local existing_codex_link
+            existing_codex_link=$(readlink -f "$CODEX_AGENTS_TARGET")
+            local real_codex_source
+            real_codex_source=$(readlink -f "$CODEX_AGENTS_SOURCE")
+            if [[ "$existing_codex_link" == "$real_codex_source" ]]; then
+                write_success "Codex AGENTS.md already linked correctly"
+            else
+                rm -f "$CODEX_AGENTS_TARGET"
+            fi
+        else
+            mkdir -p "$backup_path"
+            write_warning "Backing up existing Codex AGENTS.md to $backup_path/codex-AGENTS.md"
+            mv "$CODEX_AGENTS_TARGET" "$backup_path/codex-AGENTS.md"
+        fi
+    fi
+
+    if [[ ! -e "$CODEX_AGENTS_TARGET" && ! -L "$CODEX_AGENTS_TARGET" ]]; then
+        mkdir -p "$(dirname "$CODEX_AGENTS_TARGET")"
+        if ln -s "$CODEX_AGENTS_SOURCE" "$CODEX_AGENTS_TARGET" 2>/dev/null; then
+            write_success "Codex AGENTS.md linked: $CODEX_AGENTS_TARGET -> $CODEX_AGENTS_SOURCE"
+        else
+            write_error "Failed to link Codex AGENTS.md"
+        fi
+    fi
+
+    if [[ -e "$COPILOT_INSTRUCTIONS_TARGET" || -L "$COPILOT_INSTRUCTIONS_TARGET" ]]; then
+        if is_symlink "$COPILOT_INSTRUCTIONS_TARGET"; then
+            local existing_copilot_link
+            existing_copilot_link=$(readlink -f "$COPILOT_INSTRUCTIONS_TARGET")
+            local real_copilot_source
+            real_copilot_source=$(readlink -f "$COPILOT_INSTRUCTIONS_SOURCE")
+            if [[ "$existing_copilot_link" == "$real_copilot_source" ]]; then
+                write_success "Copilot instructions already linked correctly"
+                return
+            fi
+
+            rm -f "$COPILOT_INSTRUCTIONS_TARGET"
+        else
+            mkdir -p "$backup_path"
+            write_warning "Backing up existing Copilot instructions to $backup_path/copilot-instructions.md"
+            mv "$COPILOT_INSTRUCTIONS_TARGET" "$backup_path/copilot-instructions.md"
+        fi
+    fi
+
+    mkdir -p "$(dirname "$COPILOT_INSTRUCTIONS_TARGET")"
+    if ln -s "$COPILOT_INSTRUCTIONS_SOURCE" "$COPILOT_INSTRUCTIONS_TARGET" 2>/dev/null; then
+        write_success "Copilot instructions linked: $COPILOT_INSTRUCTIONS_TARGET -> $COPILOT_INSTRUCTIONS_SOURCE"
     else
-        write_error "Failed to link agents"
+        write_error "Failed to link Copilot instructions"
     fi
 }
 
 do_unlink_codex_skills() {
     local latest_backup="$1"
 
-    if [[ ! -e "$AGENTS_TARGET" && ! -L "$AGENTS_TARGET" ]]; then
-        return
+    if [[ -e "$AGENTS_TARGET" || -L "$AGENTS_TARGET" ]]; then
+        if is_symlink "$AGENTS_TARGET"; then
+            rm -f "$AGENTS_TARGET"
+            write_success "Removed symlink: agents"
+
+            if [[ -n "$latest_backup" && -e "$latest_backup/agents" ]]; then
+                mv "$latest_backup/agents" "$AGENTS_TARGET"
+                write_info "Restored backup for: agents"
+            fi
+        else
+            write_warning "agents is not a symlink, skipping"
+        fi
     fi
 
-    if is_symlink "$AGENTS_TARGET"; then
-        rm -f "$AGENTS_TARGET"
-        write_success "Removed symlink: agents"
+    if [[ -e "$CODEX_AGENTS_TARGET" || -L "$CODEX_AGENTS_TARGET" ]]; then
+        if is_symlink "$CODEX_AGENTS_TARGET"; then
+            rm -f "$CODEX_AGENTS_TARGET"
+            write_success "Removed symlink: Codex AGENTS.md"
 
-        if [[ -n "$latest_backup" && -e "$latest_backup/agents" ]]; then
-            mv "$latest_backup/agents" "$AGENTS_TARGET"
-            write_info "Restored backup for: agents"
+            if [[ -n "$latest_backup" && -e "$latest_backup/codex-AGENTS.md" ]]; then
+                mv "$latest_backup/codex-AGENTS.md" "$CODEX_AGENTS_TARGET"
+                write_info "Restored backup for: Codex AGENTS.md"
+            fi
+        else
+            write_warning "Codex AGENTS.md is not a symlink, skipping"
         fi
-    else
-        write_warning "agents is not a symlink, skipping"
+    fi
+
+    if [[ -e "$COPILOT_INSTRUCTIONS_TARGET" || -L "$COPILOT_INSTRUCTIONS_TARGET" ]]; then
+        if is_symlink "$COPILOT_INSTRUCTIONS_TARGET"; then
+            rm -f "$COPILOT_INSTRUCTIONS_TARGET"
+            write_success "Removed symlink: Copilot instructions"
+
+            if [[ -n "$latest_backup" && -e "$latest_backup/copilot-instructions.md" ]]; then
+                mv "$latest_backup/copilot-instructions.md" "$COPILOT_INSTRUCTIONS_TARGET"
+                write_info "Restored backup for: Copilot instructions"
+            fi
+        else
+            write_warning "Copilot instructions are not a symlink, skipping"
+        fi
     fi
 }
 
@@ -342,6 +426,44 @@ do_status_codex_skills() {
     fi
 
     printf "%-30s %s\n" "agents" "$status"
+
+    local codex_status
+    if [[ ! -e "$CODEX_AGENTS_TARGET" && ! -L "$CODEX_AGENTS_TARGET" ]]; then
+        codex_status="Not linked"
+    elif is_symlink "$CODEX_AGENTS_TARGET"; then
+        local codex_link_target
+        codex_link_target=$(readlink -f "$CODEX_AGENTS_TARGET")
+        local real_codex_source
+        real_codex_source=$(readlink -f "$CODEX_AGENTS_SOURCE")
+        if [[ "$codex_link_target" == "$real_codex_source" ]]; then
+            codex_status="Linked"
+        else
+            codex_status="Wrong target"
+        fi
+    else
+        codex_status="Exists (not symlink)"
+    fi
+
+    printf "%-30s %s\n" "codex/AGENTS.md" "$codex_status"
+
+    local copilot_status
+    if [[ ! -e "$COPILOT_INSTRUCTIONS_TARGET" && ! -L "$COPILOT_INSTRUCTIONS_TARGET" ]]; then
+        copilot_status="Not linked"
+    elif is_symlink "$COPILOT_INSTRUCTIONS_TARGET"; then
+        local copilot_link_target
+        copilot_link_target=$(readlink -f "$COPILOT_INSTRUCTIONS_TARGET")
+        local real_copilot_source
+        real_copilot_source=$(readlink -f "$COPILOT_INSTRUCTIONS_SOURCE")
+        if [[ "$copilot_link_target" == "$real_copilot_source" ]]; then
+            copilot_status="Linked"
+        else
+            copilot_status="Wrong target"
+        fi
+    else
+        copilot_status="Exists (not symlink)"
+    fi
+
+    printf "%-30s %s\n" "copilot/instructions" "$copilot_status"
 }
 
 do_link() {
