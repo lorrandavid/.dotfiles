@@ -1,11 +1,11 @@
 ---
 name: ado-deliver-tasks
-description: Deliver one, several, the ready frontier, or all approved Azure DevOps Tasks, Bugs, or tracker-defined deliverables through implementation and linked draft pull requests. Use when Codex must require an approved implementation plan, select delivery scope, enforce a dependency DAG, work in isolated worktrees, run implementation and review gates, pass the branch pipeline, create one PR per deliverable, and stack dependent PRs without completing them.
+description: Deliver one, several, the ready frontier, or all Azure DevOps Tasks, Bugs, or tracker-defined deliverables through implementation and linked draft pull requests. Use when Codex must select delivery scope, optionally consume or require an implementation plan, enforce a dependency DAG, work in isolated worktrees, run implementation and review gates, pass the branch pipeline, create one PR per deliverable, and stack dependent PRs without completing them.
 ---
 
 # Deliver ADO Tasks to Draft PRs
 
-Run the delivery control plane from approved Azure DevOps plans and their durable delivery graph. Select exactly what the user requested, schedule only eligible deliverables, keep each selected work item's ADO state aligned with its actual delivery moment, delegate each coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per deliverable only after both gates pass and its owned history is rebased and squashed to one commit.
+Run the delivery control plane from the selected Azure DevOps work items, their durable delivery graph, and any implementation plan the user asks to require or supplies. Select exactly what the user requested, schedule only eligible deliverables, keep each selected work item's ADO state aligned with its actual delivery moment, delegate each coding lifecycle to `$implement`, gate its final diff with `$cognitive-driven-development-review` and the repository's Azure Pipeline, and publish one reviewable draft PR per deliverable only after both gates pass and its owned history is rebased and squashed to one commit.
 
 Read [references/delivery-contract.md](references/delivery-contract.md) before creating worktrees, commits, branches, queueing pipelines, or creating PRs.
 
@@ -35,7 +35,7 @@ It does not authorize changing acceptance criteria, expanding the selected Task 
 
 ### 1. Reconstruct the delivery source
 
-Read `docs/agents/issue-tracker.md` and repository instructions. Fetch a complete current parent snapshot when one exists and every candidate deliverable's body, work-item type, revision, relevant comments, relations, state, readiness marker, approved-plan comments, and related PRs. For each selected work-item type, fetch the project's configured state catalog through `$azure-devops-cli` and record names, categories, and customization metadata.
+Read `docs/agents/issue-tracker.md` and repository instructions. Fetch a complete current parent snapshot when one exists and every candidate deliverable's body, work-item type, revision, relevant comments, relations, state, readiness marker, and related PRs. Fetch plan comments or fields only when the user explicitly requires a plan or identifies them as the plan source. For each selected work-item type, fetch the project's configured state catalog through `$azure-devops-cli` and record names, categories, and customization metadata.
 
 Build the verified DAG from native relations and Task bodies. Stop on disagreement or cycles rather than guessing.
 
@@ -52,18 +52,22 @@ Interpret selection literally:
 
 Never implement an unselected predecessor merely to unblock a selected Task. If its PR is absent, report the selected Task as blocked. Never add newly discovered Tasks to the selection without user authorization.
 
-### 3. Enforce readiness
+### 3. Resolve optional planning input and enforce readiness
 
-Require every selected deliverable to have an approved implementation plan. Accept either:
+Do **not** require, discover, generate, or approve an implementation plan by default. The selected work item's current material content, repository instructions, relations, and user request are sufficient delivery inputs unless the user explicitly says a plan is required.
 
-- a child-deliverable body that references its parent's verified approved-plan comment and accepted source revision; or
-- the latest non-superseded `Approved implementation plan` comment on that deliverable, with `Planning mode: in-place deliverable` and an accepted revision consistent with its current material content.
+If the user supplies a plan or identifies where it lives, use that exact source. Supported sources include inline text, a local or repository file path, a URL, an ADO comment, an ADO attachment, or a specifically named ADO work-item field. Read the source rather than substituting another plan, record its provenance, and pass its applicable content into implementation. Supplying a plan means “use this plan”; it does not require a separate approval marker unless the user explicitly asks for approved-plan verification.
 
-Read the referenced comment back. Require its hierarchical decomposition, outcome, observable acceptance criteria, explicit non-goals, agreed public test seams, resolved product and engineering decisions, dependencies, validation expectations, residual risks, and delivery-unit decision to agree with the selected work item. Also require a resolved pre-PR pipeline and a valid place in the DAG. A readiness state or detailed card body without verified approval evidence is insufficient.
+When the user explicitly requires a plan:
 
-If approval evidence is absent, superseded, stale, incomplete, or inconsistent, invoke `$ado-plan-requirement` against that selected work item in draft mode and do not start implementation. A delivery request does not authorize publishing the plan, changing criteria, creating sibling or child work, or setting readiness. Present the draft for approval and require explicit authorization to publish it. After publication, reconstruct the delivery source and enforce readiness again before continuing the already-authorized delivery scope.
+- use the user-supplied source when present;
+- otherwise accept an unambiguous plan source named by the repository tracker contract or directly referenced by the selected deliverable;
+- verify any approval, revision, freshness, or completeness properties the user explicitly requested; and
+- if no usable plan satisfies the request, stop before implementation. Invoke `$ado-plan-requirement` in draft mode only when the user asked to create or obtain a missing plan; otherwise ask the user for the plan or its location.
 
-If the parent changed materially after the accepted revision, return to `$ado-plan-requirement`. Treat ADO-recorded seams as pre-agreed for `$tdd`; do not ask the user to reconfirm them.
+When a supplied or required plan conflicts with the current work item, repository contract, or user request, stop and report the exact conflict rather than guessing which source wins. Do not block merely because an optional plan lacks hierarchical decomposition, explicit non-goals, test seams, residual risks, an ADO approval comment, or an accepted revision. Derive validation and test seams from the current requirement and codebase when they are not provided, asking only about ambiguities that materially affect behavior.
+
+In all modes, require a resolved pre-PR pipeline, an implementable scope, and a valid place in the DAG.
 
 ### 4. Choose names consistently
 
@@ -135,11 +139,11 @@ A failed Task blocks its descendants but not independent branches of the DAG. Co
 
 Pass `$implement` only the current Task, Bug, or tracker-defined deliverable plus the context it needs:
 
-- parent snapshot, accepted revision, and URLs;
+- parent snapshot, current revision, and URLs;
 - current deliverable body, revision, relevant comments, and URL;
-- approved-plan comment ID or URL, accepted revision, hierarchical decomposition, and planning mode;
+- when a plan was supplied or explicitly required: its exact source/provenance, applicable content, and any requested approval or revision evidence;
 - predecessor IDs, PRs, branches, and the chosen base commit;
-- acceptance criteria, non-goals, and pre-agreed test seams;
+- acceptance criteria, non-goals, and test seams from the work item, user request, optional plan, and repository; distinguish supplied constraints from implementation-derived seams;
 - validation commands, repository instructions, standards, glossary, and ADRs;
 - validation pipeline ID, name, project, required parameters, source branch, and exact pushed commit requirement;
 - the fixed point for `$code-review`;
@@ -169,7 +173,7 @@ Apply this CDD gate only to findings introduced or materially worsened by the Ta
 - **Pass with concerns** — continue only when no introduced High finding remains; record every unresolved concern in the delivery evidence and draft PR.
 - **Revise**, or any introduced High finding — do not publish or unlock descendants. Invoke the unchanged `$implement` skill in the same Task worktree with the bounded remediation packet, then verify scope, rerun affected and final checks, rerun `$deslop`, and rerun CDD.
 
-Allow at most two CDD remediation rounds per Task. If the final result is still **Revise** or retains an introduced High finding, mark the Task `failed`, preserve its worktree, branch, commits, CDD evidence, and validation results, and keep its descendants blocked. If remediation would conflict with accepted requirements or non-goals, mark the Task `blocked` and return it to requirement planning instead of expanding scope. Record pre-existing CDD findings separately and do not block on them unless the Task worsened them.
+Allow at most two CDD remediation rounds per Task. If the final result is still **Revise** or retains an introduced High finding, mark the Task `failed`, preserve its worktree, branch, commits, CDD evidence, and validation results, and keep its descendants blocked. If remediation would conflict with the requirement, user-supplied constraints, or an applicable plan, mark the Task `blocked` and request clarification or updated planning instead of expanding scope. Record pre-existing CDD findings separately and do not block on them unless the Task worsened them.
 
 Append every CDD attempt and remediation result to the delivery evidence; never overwrite the initial finding set with the final pass.
 
@@ -189,7 +193,7 @@ For each non-passing run:
 4. Verify the remediation stays within the Task, require `$implement` to commit it, rerun affected and final local checks, rerun `$deslop`, rerun Standards and Spec review through `$implement`, and rerun the CDD gate.
 5. Run `$make-pr-easy-to-review` again, re-fetch the target, rebase if needed, and re-squash the complete Task-owned range to exactly one commit. Re-verify ancestry, commit count, subject, clean state, and reviewed diff; then update the unpublished remote branch using the lease-protected rule above, verify the new remote SHA, and queue a new pipeline run pinned to it.
 
-Repeat without an arbitrary retry cap while each failure yields an actionable in-scope remediation and measurable progress. Never reuse a successful result from an older SHA. If remediation would expand scope, violate accepted requirements or non-goals, or cannot address an infrastructure, authentication, permission, agent-capacity, cancellation, or external-service failure, mark the Task `blocked`, preserve its worktree and evidence, and do not create a PR.
+Repeat without an arbitrary retry cap while each failure yields an actionable in-scope remediation and measurable progress. Never reuse a successful result from an older SHA. If remediation would expand scope, violate the current requirement, user-supplied constraints, or an applicable plan, or cannot address an infrastructure, authentication, permission, agent-capacity, cancellation, or external-service failure, mark the Task `blocked`, preserve its worktree and evidence, and do not create a PR.
 
 Append the successful terminal run to the evidence. Verify its `sourceBranch` and `sourceVersion` equal the Task branch and current remote `HEAD`. Add that run's ID, URL, definition, source SHA, and result to the prepared PR description without changing branch contents or history.
 
@@ -227,8 +231,8 @@ Return one result for the whole requested selection only after the final cleanup
 - On exhausted CDD remediation, preserve the Task artifacts and final review evidence, mark the Task `failed`, and never unlock its descendants.
 - On a non-passing pipeline with an actionable in-scope cause, keep remediating and rerunning the complete post-change validation sequence until the exact pushed SHA succeeds.
 - On a pipeline blocked by infrastructure, authentication, permission, agent capacity, cancellation, external service, missing logs, or ambiguous definition, preserve the worktree and all run evidence, mark the Task `blocked`, and never create its PR or unlock its descendants.
-- On a CDD remedy that conflicts with acceptance criteria, non-goals, or the accepted parent revision, stop remediation and return to planning.
-- On missing, stale, superseded, or inconsistent approval evidence; parent drift; invalid dependencies; missing seams; or scope ambiguity, return to `$ado-plan-requirement` before implementation.
+- On a CDD remedy that conflicts with acceptance criteria, user-supplied constraints, or an applicable plan, stop remediation and request clarification or updated planning.
+- Do not stop for missing plan or approval evidence unless the user explicitly required it. On a missing or unusable explicitly required plan, follow step 3. On invalid dependencies or material scope ambiguity, stop before implementation and request direction.
 - On local conflicts, report them separately from ADO `mergeStatus`; use `$resolving-merge-conflicts` only when authorized.
 - On post-publication worktree cleanup failure, retry during the final cleanup sweep. If safe removal still fails, preserve the worktree, keep the Task `pr-published`, classify the overall result as delivered-with-cleanup-failures rather than fully complete, and report its exact path, filesystem existence, git registration, cleanliness, and removal error. Never use `git worktree remove --force` or `rm -rf`.
 - On a pre-PR rebase conflict, target movement, lease failure, or history-verification failure, do not open the PR. Preserve local progress and report the exact target/source SHAs and recovery action.

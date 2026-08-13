@@ -2,15 +2,19 @@
 
 ## Per-Task implementation evidence
 
+The `planning` object is optional. Include it only when the user supplied a plan or explicitly required one. Record the exact source and only the verification properties the user requested.
+
 ```json
 {
   "taskId": 4201,
   "sourceRevision": 6,
   "planning": {
-    "mode": "in-place-deliverable",
-    "acceptedRevision": 6,
-    "approvedPlanComment": "<comment-id-or-url>",
-    "verified": true
+    "required": false,
+    "source": {
+      "kind": "file",
+      "location": "docs/plans/revoke-sessions.md"
+    },
+    "used": true
   },
   "lifecycle": {
     "workItemType": "Task",
@@ -131,7 +135,7 @@ Render the following template to a UTF-8 Markdown file with actual LF line break
 
 - Parent: AB#<parent-id> — <title>
 - Task: AB#<task-id> — <title>
-- Approved plan: <comment-id-or-url> for accepted revision <revision>
+- Plan: <source and requested verification, only when a plan was supplied or required>
 - Stacked on: <predecessor PR and branch, or “base branch”>
 
 ## What changed
@@ -170,6 +174,8 @@ Render the following template to a UTF-8 Markdown file with actual LF line break
 - <Explicit item or “None”.>
 ```
 
+Omit the `Plan` bullet entirely when no plan was supplied or required. A plan may come from inline text, a file, URL, ADO comment or attachment, or a named ADO field; preserve enough provenance for a reviewer to locate the exact input.
+
 Keep every PR limited to one Task. Before creating it, require the Task-owned range from the freshly fetched target head to the source head to contain exactly one squashed commit, require that target head to be an ancestor of the source, and require the successful pipeline source version and remote source head to equal that commit. For stacked PRs, predecessor commits are outside this range and must not be rewritten. Do not hide failing or skipped checks. Keep the PR draft while known required work remains. Read the PR back and verify that its description contains the section headings on separate lines and no literal `\n` sequences.
 
 ## Normalized delivery result
@@ -178,7 +184,7 @@ Keep every PR limited to one Task. Before creating it, require the Task-owned ra
 {
   "operation": "task-selection.deliver",
   "classification": "mutating",
-  "source": { "id": 4102, "acceptedRevision": 17, "observedRevision": 17 },
+  "source": { "id": 4102, "observedRevision": 17 },
   "selection": {
     "mode": "all",
     "requested": "all",
@@ -197,12 +203,6 @@ Keep every PR limited to one Task. Before creating it, require the Task-owned ra
     {
       "id": 4201,
       "status": "pr-published",
-      "planning": {
-        "mode": "requirement-decomposition",
-        "acceptedRevision": 17,
-        "approvedPlanComment": "<comment-id-or-url>",
-        "verified": true
-      },
       "worktree": "<absolute-path>",
       "worktreeCleanup": {
         "result": "removed",
