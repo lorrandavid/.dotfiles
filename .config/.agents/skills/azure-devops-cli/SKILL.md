@@ -20,6 +20,7 @@ Read [references/commands.md](references/commands.md) before executing an ADO op
 - Use JMESPath `--query` only to reduce or normalize output; do not discard fields needed to verify a mutation.
 - Follow every pagination mechanism until complete unless the user requests a limit. Report page counts, completion, and any continuation token or offset when output is truncated.
 - Treat the comments API as the authoritative work-item discussion history. `System.History`, revisions, and update deltas complement comments but do not replace them.
+- Preserve structured text on every mutation. Classify the destination as Markdown, HTML, or plain text; render into that native format; transport multiline content from a UTF-8 file; and read the stored value back. Follow the formatting protocol in `references/commands.md`. Never pass rich content as an inline shell literal, literal `\n` text, or an unverified `--fields` value.
 - Never expose PATs, authorization headers, environment variables, or credential-store contents.
 - Do not use `--open` in unattended work or when a URL is sufficient.
 
@@ -93,9 +94,10 @@ Use the existing `az login` session or `az devops login --organization <org-url>
 2. Classify it as read-only, mutating, or high-impact.
 3. Resolve and verify defaults plus missing organization/project/repository/team/resource identifiers.
 4. Read current state when needed. For a lifecycle transition, discover the exact type's configured state catalog and select semantically before mutation.
-5. Run the narrowest command from the command reference.
-6. For mutation, read back the affected resource and compare the requested fields or links.
-7. Return concise human output plus normalized JSON when requested or when another tool will consume the result.
+5. For human-authored text, apply the formatting protocol and inspect the exact payload before mutation.
+6. Run the narrowest command from the command reference.
+7. For mutation, read back the affected resource and compare the requested fields or links. For formatted text, verify the raw stored value and its destination format before reporting success.
+8. Return concise human output plus normalized JSON when requested or when another tool will consume the result.
 
 ## Output contract
 

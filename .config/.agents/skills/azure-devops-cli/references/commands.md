@@ -5,6 +5,7 @@ Use these patterns after the core workflow in `SKILL.md`. Examples are single-li
 ## Contents
 
 - [Shared inspection](#shared-inspection)
+- [Formatting-safe writes](#formatting-safe-writes)
 - [Work items](#work-items)
 - [Work-item state discovery and transitions](#work-item-state-discovery-and-transitions)
 - [Requirement history and attachments](#requirement-history-and-attachments)
@@ -35,6 +36,39 @@ When a PR ID is already available, run `az repos pr show --id <pr-id> --org <org
 
 Prefer explicit `--org`, `--project`, and `--repository` in automation prompts even when defaults exist.
 
+## Formatting-safe writes
+
+Apply this protocol to descriptions, comments, acceptance criteria, reproduction steps, release notes, custom multiline fields, and every other human-authored value where whitespace or markup matters. It applies even when another skill prepared the content.
+
+1. Identify the destination's native format before writing:
+   - PR descriptions and PR comments: Markdown.
+   - Work-item comments through the comments API: Markdown when `format=markdown` is explicit.
+   - Work-item fields whose metadata type is `html`, including the usual Description, Acceptance Criteria, and Repro Steps fields: HTML. Raw Markdown in these fields is plain text, so convert the intended Markdown to equivalent HTML before mutation.
+   - Fields whose metadata type is `plainText` or `string`: plain text. Do not promise Markdown rendering.
+2. Preserve the authored source in a temporary UTF-8 file. Use LF or CRLF consistently and do not add a byte-order mark. Inspect the complete file before mutation. Do not construct rich content with `echo`, shell interpolation, a command-line here-document, or literal `\n` sequences.
+3. For REST bodies, create valid JSON with a JSON-aware editing or serialization tool so quotes, backslashes, newlines, and non-ASCII characters are escaped correctly. Pass the body with `az devops invoke --in-file`; never interpolate Markdown or HTML into JSON in the shell.
+4. For first-class commands that accept only a string argument, load the entire file into one native shell variable and pass that variable as one argument. Do not paste the content into the command.
+5. Read the written resource back through an unfiltered endpoint. For Markdown, compare the raw stored value with the intended payload after normalizing CRLF/LF and, only when the client removed it, one terminal newline. For HTML fields, verify that the server-stored HTML retains the intended headings, paragraphs, lists, tables, code, and links after Azure DevOps sanitation. Also verify the destination format when the API exposes it. If text or structure is missing or escaped incorrectly, treat the mutation as failed and correct it before reporting success.
+6. Remove temporary payload files after successful verification when they contain sensitive or task-specific content. Do not delete user-authored source files.
+
+Use these shell-specific file-to-one-argument patterns. Both preserve embedded quotes, backticks, dollar signs, and real line breaks because the shell does not re-evaluate variable contents.
+
+Bash:
+
+```text
+content="$(<content.md)"
+az <command> --description "$content" ...
+```
+
+Windows PowerShell 5.1 or PowerShell 7+:
+
+```text
+$content = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath './content.md').Path)
+az <command> --description $content ...
+```
+
+Do not use Bash command substitution in PowerShell or PowerShell `Get-Content` syntax in Bash. Keep command examples single-line after assigning the variable.
+
 ## Work items
 
 ### Read and query — read-only
@@ -58,10 +92,10 @@ Use `@Me` for the authenticated identity and `@CurrentIteration` only when the t
 Create a work item:
 
 ```text
-az boards work-item create --org <org-url> --project <project> --type <work-item-type> --title <title> --description <description> --assigned-to <identity> --area <area-path> --iteration <iteration-path> --fields <field-reference-name>=<value> --only-show-errors --output json
+az boards work-item create --org <org-url> --project <project> --type <work-item-type> --title <title> --description <html-content-variable> --assigned-to <identity> --area <area-path> --iteration <iteration-path> --fields <field-reference-name>=<value> --only-show-errors --output json
 ```
 
-Pass only requested optional fields. Process-specific field reference names vary; inspect an existing item or process metadata rather than guessing.
+Pass only requested optional fields. Process-specific field reference names and types vary; inspect field metadata rather than guessing. Render Markdown source to equivalent HTML before passing it to an `html` field. For a multiline custom field, pass the complete `<reference-name>=<value>` pair as one native argument and verify the raw stored field afterward.
 
 ### Update — mutating
 
@@ -73,11 +107,19 @@ az boards work-item update --id <work-item-id> --org <org-url> --title <title> -
 
 Add a discussion comment:
 
-```text
-az boards work-item update --id <work-item-id> --org <org-url> --discussion <comment> --only-show-errors --output json
+```json
+{
+  "text": "<Markdown with JSON-escaped line breaks>"
+}
 ```
 
-Classify discussion updates as `work-item.comment`. Read the item back after creation or update.
+Write that object to a UTF-8 JSON file, then use the comments API with its format declared explicitly:
+
+```text
+az devops invoke --area wit --resource comments --route-parameters project=<project> workItemId=<work-item-id> --query-parameters 'format=markdown' --org <org-url> --api-version 7.1-preview.4 --http-method POST --in-file <comment.json> --only-show-errors --output json
+```
+
+Classify discussion updates as `work-item.comment`. Do not use `az boards work-item update --discussion` for formatted content because it does not declare the content format. Read the returned comment and then fetch it through the comments API; verify `format` is `markdown`, `text` matches the source, and `renderedText` is present. Read the item back after creation or field updates.
 
 ## Work-item state discovery and transitions
 
@@ -346,20 +388,21 @@ az repos pr show --id <pr-id> --org <org-url> --query '{id:pullRequestId,title:t
 
 ### Create — mutating
 
-Create a PR and link work items in the same operation when possible. For a multiline description, first render the final Markdown to a temporary UTF-8 file, inspect it, and pass its contents as one quoted argument. In Bash:
+Create a PR and link work items in the same operation when possible. For a multiline description, first render the final Markdown to a temporary UTF-8 file, inspect it, load it with the shell-specific pattern in [Formatting-safe writes](#formatting-safe-writes), and pass the variable as one argument. In Bash:
 
 ```text
-az repos pr create --repository <repo-name-or-id> --project <project> --org <org-url> --source-branch <source-branch> --target-branch <target-branch> --title <title> --description "$(<description.md)" --work-items <work-item-id-1> <work-item-id-2> --optional-reviewers <identity> --required-reviewers <identity> --only-show-errors --output json
+description="$(<description.md)"
+az repos pr create --repository <repo-name-or-id> --project <project> --org <org-url> --source-branch <source-branch> --target-branch <target-branch> --title <title> --description "$description" --work-items <work-item-id-1> <work-item-id-2> --optional-reviewers <identity> --required-reviewers <identity> --only-show-errors --output json
 ```
 
-Do not put literal `\n` sequences in `--description`, omit the quotes around command substitution, or collapse the Markdown to one line. When the active shell is not Bash, use that shell's equivalent file-to-single-argument mechanism and verify that it preserves real line breaks. Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
+On PowerShell, use `$description = [System.IO.File]::ReadAllText(...)` from the shared pattern and pass `--description $description`. Do not put literal `\n` sequences in `--description`, omit the quotes around a Bash variable, or collapse the Markdown to one line. Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
 
 ### Update — mutating or high-impact
 
 Update metadata or draft state. Preserve multiline Markdown with the same file-based approach used for creation:
 
 ```text
-az repos pr update --id <pr-id> --org <org-url> --title <title> --description "$(<description.md)" --draft <true-or-false> --only-show-errors --output json
+az repos pr update --id <pr-id> --org <org-url> --title <title> --description <description-variable> --draft <true-or-false> --only-show-errors --output json
 ```
 
 After creating or updating a PR, read its unfiltered `description` back from the server. Compare it with the rendered Markdown and verify that headings remain on separate lines and that the value contains no literal `\n` sequences. If formatting differs, correct the invocation and read it back again before reporting success.
@@ -424,7 +467,7 @@ Resolve the PR's target `repository.id`, then list comment threads — read-only
 az devops invoke --area git --resource pullRequestThreads --route-parameters project=<project> repositoryId=<repository-id> pullRequestId=<pr-id> --org <org-url> --api-version 7.1 --http-method GET --only-show-errors --output json
 ```
 
-To create a top-level PR comment, write this request body to a temporary JSON file:
+To create a top-level PR comment, keep the Markdown source in a UTF-8 file and write this request body to a separate temporary UTF-8 JSON file with a JSON-aware tool:
 
 ```json
 {
@@ -444,6 +487,8 @@ Then run the mutating request:
 ```text
 az devops invoke --area git --resource pullRequestThreads --route-parameters project=<project> repositoryId=<repository-id> pullRequestId=<pr-id> --org <org-url> --api-version 7.1 --http-method POST --in-file <request.json> --only-show-errors --output json
 ```
+
+Read the created thread back and compare `comments[0].content` with the Markdown source using the shared normalization rule. Do not report success from the POST response alone.
 
 Use the `pullRequestThreadComments` REST resource to reply to a known thread, supplying `threadId` and a body containing `content`, `parentCommentId`, and `commentType`. For line comments, obtain iteration and change-tracking context first; never guess line positions or iteration IDs.
 
@@ -525,6 +570,8 @@ Do not rely on display-formatted `table` output for automation or parsing. Prese
 - [Azure CLI: project iterations](https://learn.microsoft.com/en-us/cli/azure/boards/iteration/project?view=azure-cli-latest) and [team iterations](https://learn.microsoft.com/en-us/cli/azure/boards/iteration/team?view=azure-cli-latest)
 - [Azure CLI: `az devops invoke`](https://learn.microsoft.com/en-us/cli/azure/devops?view=azure-cli-latest#az-devops-invoke)
 - [Azure DevOps REST 7.1: work-item comments](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/comments/get-comments?view=azure-devops-rest-7.1)
+- [Azure DevOps REST 7.1: add a formatted work-item comment](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/comments/add-work-item-comment?view=azure-devops-rest-7.1)
+- [Azure DevOps REST 7.1: work-item field types](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/fields/list?view=azure-devops-rest-7.1)
 - [Azure DevOps REST 7.1: work-item revisions](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/revisions/list?view=azure-devops-rest-7.1)
 - [Azure DevOps REST 7.1: work-item update deltas](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/updates/list?view=azure-devops-rest-7.1)
 - [Azure DevOps REST 7.1: attachment downloads](https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/attachments/get?view=azure-devops-rest-7.1)
