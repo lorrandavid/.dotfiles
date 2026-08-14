@@ -12,7 +12,7 @@ Read [references/task-contract.md](references/task-contract.md) before drafting 
 ## Compose the supporting skills
 
 - Use `$azure-devops-cli` for every Azure DevOps read or mutation and follow its classifications, pagination, URL, and JSON contracts.
-- Use `$batch-grill-me` when product or engineering decisions are unresolved. Ask every currently unblocked decision-rich question in numbered rounds, with a recommended answer for each.
+- Use `$grilling` when product or engineering decisions are unresolved. Ask every currently unblocked decision-rich question in numbered rounds, with a recommended answer for each.
 - Use `$domain-modeling` when terminology or business invariants need sharpening.
 - Use `$tech-spec` when the work crosses important module boundaries or needs a typed call-stack handoff.
 - Use the repository's documented standards. Use `$coding-standards` for TypeScript repositories.
@@ -66,7 +66,7 @@ Do not turn ordinary implementation choices into product questions.
 
 ### 4. Clarify and batch grill
 
-Resolve material ambiguity before publication. Use `$batch-grill-me` to map unresolved decisions as a dependency-aware design tree and ask the full currently unblocked frontier in each numbered round. Cover behavior, actors, boundaries, failure modes, compatibility, data migration, observability, security, rollout, accessibility when relevant, and explicit non-goals.
+Resolve material ambiguity before publication. Use `$grilling` to map unresolved decisions as a dependency-aware design tree and ask the full currently unblocked frontier in each numbered round. Cover behavior, actors, boundaries, failure modes, compatibility, data migration, observability, security, rollout, accessibility when relevant, and explicit non-goals.
 
 Update the proposed work-item interpretation after each round and recompute the decision frontier. Continue until the frontier is empty and the user confirms shared understanding. If answers change the source work item's requirements, propose the exact ADO update separately; do not silently rewrite it.
 
