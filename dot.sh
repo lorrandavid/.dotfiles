@@ -30,6 +30,8 @@ CODEX_AGENTS_SOURCE="$AGENTS_SOURCE/AGENTS.md"
 CODEX_AGENTS_TARGET="$HOME/.codex/AGENTS.md"
 COPILOT_INSTRUCTIONS_SOURCE="$CONFIG_SOURCE/.copilot/copilot-instructions.md"
 COPILOT_INSTRUCTIONS_TARGET="$HOME/.copilot/copilot-instructions.md"
+COPILOT_SKILLS_SOURCE="$AGENTS_SOURCE/skills"
+COPILOT_SKILLS_TARGET="$HOME/.copilot/skills"
 
 # Colors
 BLUE='\033[0;34m'
@@ -338,10 +340,10 @@ do_link_codex_skills() {
             real_copilot_source=$(readlink -f "$COPILOT_INSTRUCTIONS_SOURCE")
             if [[ "$existing_copilot_link" == "$real_copilot_source" ]]; then
                 write_success "Copilot instructions already linked correctly"
-                return
+            else
+                rm -f "$COPILOT_INSTRUCTIONS_TARGET"
             fi
 
-            rm -f "$COPILOT_INSTRUCTIONS_TARGET"
         else
             mkdir -p "$backup_path"
             write_warning "Backing up existing Copilot instructions to $backup_path/copilot-instructions.md"
@@ -349,11 +351,43 @@ do_link_codex_skills() {
         fi
     fi
 
-    mkdir -p "$(dirname "$COPILOT_INSTRUCTIONS_TARGET")"
-    if ln -s "$COPILOT_INSTRUCTIONS_SOURCE" "$COPILOT_INSTRUCTIONS_TARGET" 2>/dev/null; then
-        write_success "Copilot instructions linked: $COPILOT_INSTRUCTIONS_TARGET -> $COPILOT_INSTRUCTIONS_SOURCE"
+    if [[ ! -e "$COPILOT_INSTRUCTIONS_TARGET" && ! -L "$COPILOT_INSTRUCTIONS_TARGET" ]]; then
+        mkdir -p "$(dirname "$COPILOT_INSTRUCTIONS_TARGET")"
+        if ln -s "$COPILOT_INSTRUCTIONS_SOURCE" "$COPILOT_INSTRUCTIONS_TARGET" 2>/dev/null; then
+            write_success "Copilot instructions linked: $COPILOT_INSTRUCTIONS_TARGET -> $COPILOT_INSTRUCTIONS_SOURCE"
+        else
+            write_error "Failed to link Copilot instructions"
+        fi
+    fi
+
+    if [[ ! -d "$COPILOT_SKILLS_SOURCE" ]]; then
+        return
+    fi
+
+    if [[ -e "$COPILOT_SKILLS_TARGET" || -L "$COPILOT_SKILLS_TARGET" ]]; then
+        if is_symlink "$COPILOT_SKILLS_TARGET"; then
+            local existing_copilot_skills_link
+            existing_copilot_skills_link=$(readlink -f "$COPILOT_SKILLS_TARGET")
+            local real_copilot_skills_source
+            real_copilot_skills_source=$(readlink -f "$COPILOT_SKILLS_SOURCE")
+            if [[ "$existing_copilot_skills_link" == "$real_copilot_skills_source" ]]; then
+                write_success "Copilot skills already linked correctly"
+                return
+            fi
+
+            rm -f "$COPILOT_SKILLS_TARGET"
+        else
+            mkdir -p "$backup_path"
+            write_warning "Backing up existing Copilot skills to $backup_path/copilot-skills"
+            mv "$COPILOT_SKILLS_TARGET" "$backup_path/copilot-skills"
+        fi
+    fi
+
+    mkdir -p "$(dirname "$COPILOT_SKILLS_TARGET")"
+    if ln -s "$COPILOT_SKILLS_SOURCE" "$COPILOT_SKILLS_TARGET" 2>/dev/null; then
+        write_success "Copilot skills linked: $COPILOT_SKILLS_TARGET -> $COPILOT_SKILLS_SOURCE"
     else
-        write_error "Failed to link Copilot instructions"
+        write_error "Failed to link Copilot skills"
     fi
 }
 
@@ -399,6 +433,20 @@ do_unlink_codex_skills() {
             fi
         else
             write_warning "Copilot instructions are not a symlink, skipping"
+        fi
+    fi
+
+    if [[ -e "$COPILOT_SKILLS_TARGET" || -L "$COPILOT_SKILLS_TARGET" ]]; then
+        if is_symlink "$COPILOT_SKILLS_TARGET"; then
+            rm -f "$COPILOT_SKILLS_TARGET"
+            write_success "Removed symlink: Copilot skills"
+
+            if [[ -n "$latest_backup" && -e "$latest_backup/copilot-skills" ]]; then
+                mv "$latest_backup/copilot-skills" "$COPILOT_SKILLS_TARGET"
+                write_info "Restored backup for: Copilot skills"
+            fi
+        else
+            write_warning "Copilot skills are not a symlink, skipping"
         fi
     fi
 }
@@ -464,6 +512,25 @@ do_status_codex_skills() {
     fi
 
     printf "%-30s %s\n" "copilot/instructions" "$copilot_status"
+
+    local copilot_skills_status
+    if [[ ! -e "$COPILOT_SKILLS_TARGET" && ! -L "$COPILOT_SKILLS_TARGET" ]]; then
+        copilot_skills_status="Not linked"
+    elif is_symlink "$COPILOT_SKILLS_TARGET"; then
+        local copilot_skills_link_target
+        copilot_skills_link_target=$(readlink -f "$COPILOT_SKILLS_TARGET")
+        local real_copilot_skills_source
+        real_copilot_skills_source=$(readlink -f "$COPILOT_SKILLS_SOURCE")
+        if [[ "$copilot_skills_link_target" == "$real_copilot_skills_source" ]]; then
+            copilot_skills_status="Linked"
+        else
+            copilot_skills_status="Wrong target"
+        fi
+    else
+        copilot_skills_status="Exists (not symlink)"
+    fi
+
+    printf "%-30s %s\n" "copilot/skills" "$copilot_skills_status"
 }
 
 do_link() {

@@ -43,6 +43,8 @@ $script:CodexAgentsSource = Join-Path $script:AgentsSource "AGENTS.md"
 $script:CodexAgentsTarget = Join-Path $env:USERPROFILE ".codex\AGENTS.md"
 $script:CopilotInstructionsSource = Join-Path $ConfigSource ".copilot\copilot-instructions.md"
 $script:CopilotInstructionsTarget = Join-Path $env:USERPROFILE ".copilot\copilot-instructions.md"
+$script:CopilotSkillsSource = Join-Path $script:AgentsSource "skills"
+$script:CopilotSkillsTarget = Join-Path $env:USERPROFILE ".copilot\skills"
 
 # Colors for output
 function Write-Header { param($Message) Write-Host "`n==> $Message" -ForegroundColor Blue }
@@ -418,10 +420,10 @@ function Invoke-LinkAgents {
                 $existingLink = (Get-Item -LiteralPath $script:CopilotInstructionsTarget).Target
                 if ($existingLink -eq $script:CopilotInstructionsSource) {
                     Write-Success "Copilot instructions already linked correctly"
-                    return
                 }
-
-                Remove-Item -LiteralPath $script:CopilotInstructionsTarget -Force
+                else {
+                    Remove-Item -LiteralPath $script:CopilotInstructionsTarget -Force
+                }
             }
             else {
                 if (-not (Test-Path $BackupPath)) {
@@ -439,8 +441,38 @@ function Invoke-LinkAgents {
             New-Item -ItemType Directory -Path $copilotTargetParent -Force | Out-Null
         }
 
-        New-Item -ItemType SymbolicLink -Path $script:CopilotInstructionsTarget -Target $script:CopilotInstructionsSource -Force | Out-Null
-        Write-Success "Copilot instructions linked: $($script:CopilotInstructionsTarget) -> $($script:CopilotInstructionsSource)"
+        if (-not (Test-Path -LiteralPath $script:CopilotInstructionsTarget)) {
+            New-Item -ItemType SymbolicLink -Path $script:CopilotInstructionsTarget -Target $script:CopilotInstructionsSource -Force | Out-Null
+            Write-Success "Copilot instructions linked: $($script:CopilotInstructionsTarget) -> $($script:CopilotInstructionsSource)"
+        }
+
+        if (Test-Path -LiteralPath $script:CopilotSkillsSource -PathType Container) {
+            if (Test-Path -LiteralPath $script:CopilotSkillsTarget) {
+                if (Test-IsSymlink $script:CopilotSkillsTarget) {
+                    $existingLink = (Get-Item -LiteralPath $script:CopilotSkillsTarget).Target
+                    if ($existingLink -eq $script:CopilotSkillsSource) {
+                        Write-Success "Copilot skills already linked correctly"
+                    }
+                    else {
+                        Remove-Item -LiteralPath $script:CopilotSkillsTarget -Force
+                    }
+                }
+                else {
+                    if (-not (Test-Path $BackupPath)) {
+                        New-Item -ItemType Directory -Path $BackupPath -Force | Out-Null
+                    }
+
+                    $backupTarget = Join-Path $BackupPath "copilot-skills"
+                    Write-Warning "Backing up existing Copilot skills to $backupTarget"
+                    Move-Item -LiteralPath $script:CopilotSkillsTarget -Destination $backupTarget -Force
+                }
+            }
+
+            if (-not (Test-Path -LiteralPath $script:CopilotSkillsTarget)) {
+                New-Item -ItemType Junction -Path $script:CopilotSkillsTarget -Target $script:CopilotSkillsSource -Force | Out-Null
+                Write-Success "Copilot skills linked: $($script:CopilotSkillsTarget) -> $($script:CopilotSkillsSource)"
+            }
+        }
     }
     catch {
         Write-Error "Failed to link agents: $_"
@@ -503,6 +535,24 @@ function Invoke-UnlinkAgents {
             Write-Warning "Copilot instructions are not a symlink, skipping"
         }
     }
+
+    if (Test-Path -LiteralPath $script:CopilotSkillsTarget) {
+        if (Test-IsSymlink $script:CopilotSkillsTarget) {
+            Remove-Item -LiteralPath $script:CopilotSkillsTarget -Force
+            Write-Success "Removed symlink: Copilot skills"
+
+            if ($LatestBackup) {
+                $backupSource = Join-Path $LatestBackup.FullName "copilot-skills"
+                if (Test-Path -LiteralPath $backupSource) {
+                    Move-Item -LiteralPath $backupSource -Destination $script:CopilotSkillsTarget -Force
+                    Write-Info "Restored backup for: Copilot skills"
+                }
+            }
+        }
+        else {
+            Write-Warning "Copilot skills are not a symlink, skipping"
+        }
+    }
 }
 
 function Invoke-StatusAgents {
@@ -550,6 +600,20 @@ function Invoke-StatusAgents {
     [PSCustomObject]@{
         Config = "copilot/instructions"
         Status = $copilotStatus
+    }
+
+    $copilotSkillsStatus = if (-not (Test-Path -LiteralPath $script:CopilotSkillsTarget)) {
+        "Not linked"
+    } elseif (Test-IsSymlink $script:CopilotSkillsTarget) {
+        $linkTarget = (Get-Item -LiteralPath $script:CopilotSkillsTarget).Target
+        if ($linkTarget -eq $script:CopilotSkillsSource) { "Linked" } else { "Wrong target" }
+    } else {
+        "Exists (not symlink)"
+    }
+
+    [PSCustomObject]@{
+        Config = "copilot/skills"
+        Status = $copilotSkillsStatus
     }
 }
 
