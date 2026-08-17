@@ -5,7 +5,7 @@ description: Operate Azure DevOps through the Azure CLI for Boards work items, r
 
 # Azure DevOps CLI
 
-Prefer `az boards`, `az pipelines`, `az repos`, and `az devops` over manual web instructions. Use `az devops invoke` only when the extension has no first-class command, notably for pipeline timelines and logs or pull-request comment threads.
+Prefer Azure CLI authentication and resource discovery over manual web instructions. Use first-class `az boards`, `az pipelines`, and `az repos` commands for reads and simple scalar mutations. For creates or updates that combine multiline text with flags, links, relations, reviewers, or other coupled fields, prefer one REST request through `az devops invoke --in-file` even when a first-class command exists. The Azure DevOps extension's argument adapters can silently reshape multiline values or omit coupled fields.
 
 Read [references/commands.md](references/commands.md) before executing an ADO operation.
 
@@ -19,8 +19,11 @@ Read [references/commands.md](references/commands.md) before executing an ADO op
 - Add `--only-show-errors --output json` to data commands unless the user explicitly requests a table.
 - Use JMESPath `--query` only to reduce or normalize output; do not discard fields needed to verify a mutation.
 - Follow every pagination mechanism until complete unless the user requests a limit. Report page counts, completion, and any continuation token or offset when output is truncated.
+- Rate-limit every wait loop. Treat a successful create/queue response containing the resource's current state as the initial observation; do not immediately read the same resource again. After the initial observation, use the operation-specific interval in `references/commands.md`; when none is documented, wait 5 minutes before the first follow-up read, 10 minutes before the second, and 15 minutes before every later read. Never issue back-to-back status reads while waiting, and honor server retry guidance when it requires a longer delay.
 - Treat the comments API as the authoritative work-item discussion history. `System.History`, revisions, and update deltas complement comments but do not replace them.
 - Preserve structured text on every mutation. Classify the destination as Markdown, HTML, or plain text; render into that native format; transport multiline content from a UTF-8 file; and read the stored value back. Follow the formatting protocol in `references/commands.md`. Never pass rich content as an inline shell literal, literal `\n` text, or an unverified `--fields` value.
+- Choose the mutation transport before writing. If one REST create/update endpoint accepts all requested properties, send one JSON or JSON Patch payload with `az devops invoke --in-file`; do not knowingly create a partial resource with a first-class command and then repair it server-side. Use multiple mutations only when ADO exposes no atomic endpoint, and state that limitation before the first write.
+- Treat a successful CLI exit as transport success, not field-level success. Verify every requested field, flag, reviewer, relation, and link from server state. If verification fails unexpectedly, report the mismatch and obtain a fresh read before deciding whether a corrective mutation is safe; do not normalize create-then-correct as the standard workflow.
 - Never expose PATs, authorization headers, environment variables, or credential-store contents.
 - Do not use `--open` in unattended work or when a URL is sufficient.
 
@@ -95,8 +98,8 @@ Use the existing `az login` session or `az devops login --organization <org-url>
 3. Resolve and verify defaults plus missing organization/project/repository/team/resource identifiers.
 4. Read current state when needed. For a lifecycle transition, discover the exact type's configured state catalog and select semantically before mutation.
 5. For human-authored text, apply the formatting protocol and inspect the exact payload before mutation.
-6. Run the narrowest command from the command reference.
-7. For mutation, read back the affected resource and compare the requested fields or links. For formatted text, verify the raw stored value and its destination format before reporting success.
+6. Select the transport: use one file-backed REST payload for a compound or rich-text mutation; otherwise use the narrowest reliable first-class command from the command reference.
+7. For mutation, read back the affected resource and compare every requested field, flag, reviewer, relation, and link. For formatted text, verify the raw stored value and its destination format before reporting success.
 8. Return concise human output plus normalized JSON when requested or when another tool will consume the result.
 
 ## Output contract

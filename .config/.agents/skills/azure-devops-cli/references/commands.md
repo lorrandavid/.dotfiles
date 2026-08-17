@@ -89,13 +89,29 @@ Use `@Me` for the authenticated identity and `@CurrentIteration` only when the t
 
 ### Create — mutating
 
-Create a work item:
+For a title-only or otherwise simple scalar create, the first-class command is acceptable:
 
 ```text
-az boards work-item create --org <org-url> --project <project> --type <work-item-type> --title <title> --description <html-content-variable> --assigned-to <identity> --area <area-path> --iteration <iteration-path> --fields <field-reference-name>=<value> --only-show-errors --output json
+az boards work-item create --org <org-url> --project <project> --type <work-item-type> --title <title> --only-show-errors --output json
 ```
 
-Pass only requested optional fields. Process-specific field reference names and types vary; inspect field metadata rather than guessing. Render Markdown source to equivalent HTML before passing it to an `html` field. For a multiline custom field, pass the complete `<reference-name>=<value>` pair as one native argument and verify the raw stored field afterward.
+When creation includes a description, acceptance criteria, custom multiline fields, or several coupled properties, inspect field metadata and write one JSON Patch array to a UTF-8 file. Include one `add` operation per requested field, using its reference name:
+
+```json
+[
+  { "op": "add", "path": "/fields/System.Title", "value": "<title>" },
+  { "op": "add", "path": "/fields/System.Description", "value": "<native HTML>" },
+  { "op": "add", "path": "/fields/<field-reference-name>", "value": "<typed value>" }
+]
+```
+
+Create the item with that payload:
+
+```text
+az devops invoke --area wit --resource workItems --route-parameters project=<project> type=<work-item-type> --org <org-url> --api-version 7.1 --http-method POST --media-type application/json-patch+json --in-file <work-item-patch.json> --only-show-errors --output json
+```
+
+Pass only requested fields. Process-specific reference names and types vary; never guess them. Render Markdown source to equivalent HTML for an `html` field. Verify every field from an expanded work-item read. Do not use a lossy first-class create followed by field repairs when this endpoint can create the requested state in one request.
 
 ### Update — mutating
 
@@ -342,11 +358,20 @@ az pipelines runs list --pipeline-ids <pipeline-id> --branch refs/heads/<source-
 
 ### Monitor and diagnose a run — read-only
 
-Poll the captured run ID at a reasonable interval until `status` is `completed`:
+For a run just queued in the current operation, use the queue response as the initial observation and do not immediately fetch the run again. For a pre-existing run without a current observation, read it once immediately. Then poll until `status` is `completed`:
 
 ```text
 az pipelines runs show --id <run-id> --project <project> --org <org-url> --only-show-errors --output json
 ```
+
+Use a polling interval, not a debounce: a debounce can postpone forever while events keep arriving, whereas polling guarantees one bounded request per interval. After the initial observation, apply this schedule:
+
+- Wait 5 minutes before the first follow-up read.
+- If the run is not completed, wait 10 minutes before the second follow-up read.
+- If the run is still not completed, wait 15 minutes before every later read.
+- If the service returns throttling or transient-unavailable guidance, honor `Retry-After` when it requires a longer delay than the schedule.
+
+Record the next eligible poll time and make no run, timeline, log, pipeline-list, or recent-runs request merely to fill the wait. A user-requested or repository-defined slower interval overrides this schedule. Do not poll sooner unless an explicit repository contract requires it. Historical run durations may provide a rough ETA, but must not replace checking the captured run ID or be used to assume completion; querying history solely to choose a delay adds load without establishing current state.
 
 Do not infer success from command exit status or a completed state alone. Require `result` to equal `succeeded`; treat `partiallySucceeded`, `failed`, and `canceled` as non-passing. Verify `definition.id`, `sourceBranch`, and `sourceVersion` against the requested pipeline, branch, and commit.
 
@@ -388,26 +413,55 @@ az repos pr show --id <pr-id> --org <org-url> --query '{id:pullRequestId,title:t
 
 ### Create — mutating
 
-Create a PR and link work items in the same operation when possible. For a multiline description, first render the final Markdown to a temporary UTF-8 file, inspect it, load it with the shell-specific pattern in [Formatting-safe writes](#formatting-safe-writes), and pass the variable as one argument. In Bash:
+Use `az repos pr create` only for a simple PR whose requested state is fully represented by reliable scalar arguments. If creation includes a multiline description, draft mode, work-item links, or reviewers, create it atomically through the Git REST resource. Resolve the repository ID and reviewer identity IDs first. Generate this body in a UTF-8 JSON file with a JSON-aware serializer; omit properties the user did not request:
 
-```text
-description="$(<description.md)"
-az repos pr create --repository <repo-name-or-id> --project <project> --org <org-url> --source-branch <source-branch> --target-branch <target-branch> --title <title> --description "$description" --work-items <work-item-id-1> <work-item-id-2> --optional-reviewers <identity> --required-reviewers <identity> --only-show-errors --output json
+```json
+{
+  "sourceRefName": "refs/heads/<source-branch>",
+  "targetRefName": "refs/heads/<target-branch>",
+  "title": "<title>",
+  "description": "<multiline Markdown>",
+  "isDraft": true,
+  "workItemRefs": [
+    { "id": "<work-item-id-1>" },
+    { "id": "<work-item-id-2>" }
+  ],
+  "reviewers": [
+    { "id": "<reviewer-identity-id>", "isRequired": false },
+    { "id": "<required-reviewer-identity-id>", "isRequired": true }
+  ]
+}
 ```
 
-On PowerShell, use `$description = [System.IO.File]::ReadAllText(...)` from the shared pattern and pass `--description $description`. Do not put literal `\n` sequences in `--description`, omit the quotes around a Bash variable, or collapse the Markdown to one line. Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
+Then make one create request:
+
+```text
+az devops invoke --area git --resource pullRequests --route-parameters project=<project> repositoryId=<repository-id> --org <org-url> --api-version 7.1 --http-method POST --in-file <pull-request.json> --only-show-errors --output json
+```
+
+Use full `refs/heads/...` ref names in the REST body. Do not create the PR first and then repair its description, draft state, work-item links, or reviewers when they can be included in this payload. Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
+
+Read the PR back unfiltered and separately list linked work items and reviewers. Verify the title, source and target refs, raw description, `isDraft`, linked work-item IDs, reviewer IDs, and required-reviewer flags before reporting success.
 
 ### Update — mutating or high-impact
 
-Update metadata or draft state. Preserve multiline Markdown with the same file-based approach used for creation:
+A simple scalar metadata update may use `az repos pr update`. For multiline Markdown or an update combining several properties, write only the requested properties to a UTF-8 JSON file and use one REST PATCH:
 
-```text
-az repos pr update --id <pr-id> --org <org-url> --title <title> --description <description-variable> --draft <true-or-false> --only-show-errors --output json
+```json
+{
+  "title": "<title>",
+  "description": "<multiline Markdown>",
+  "isDraft": false
+}
 ```
 
-After creating or updating a PR, read its unfiltered `description` back from the server. Compare it with the rendered Markdown and verify that headings remain on separate lines and that the value contains no literal `\n` sequences. If formatting differs, correct the invocation and read it back again before reporting success.
+```text
+az devops invoke --area git --resource pullRequests --route-parameters project=<project> repositoryId=<repository-id> pullRequestId=<pr-id> --org <org-url> --api-version 7.1 --http-method PATCH --in-file <pull-request-update.json> --only-show-errors --output json
+```
 
-Treat `--status completed`, `--status abandoned`, `--bypass-policy true`, `--delete-source-branch true`, and `--transition-work-items true` as high-impact. Read policies and merge status immediately before completing a PR, and read the PR back afterward.
+Do not include unchanged or unrequested properties. After creating or updating a PR, read its unfiltered state back from the server. Compare the raw description with the rendered Markdown, verify that headings remain on separate lines and that the value contains no literal `\n` sequences, and verify every other requested property. If verification fails, treat the update as failed; re-read before deciding whether a corrective request is safe.
+
+Treat completion, abandonment, policy bypass, source-branch deletion, and work-item transitions as high-impact regardless of transport. Read policies and merge status immediately before completing a PR, and read the PR back afterward.
 
 ## PR reviewers, votes, policies, and conflicts
 
