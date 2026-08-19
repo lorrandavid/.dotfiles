@@ -1,7 +1,7 @@
 ---
 name: tech-spec
 description: Write a typed call-stack architecture handoff.
-disable-model-invocation: false
+disable-model-invocation: true
 ---
 
 # Tech Spec
