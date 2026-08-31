@@ -28,7 +28,7 @@ AGENTS_SOURCE="$CONFIG_SOURCE/.agents"
 AGENTS_TARGET="$HOME/.agents"
 CODEX_AGENTS_SOURCE="$AGENTS_SOURCE/AGENTS.md"
 CODEX_AGENTS_TARGET="$HOME/.codex/AGENTS.md"
-COPILOT_INSTRUCTIONS_SOURCE="$CONFIG_SOURCE/.copilot/copilot-instructions.md"
+COPILOT_INSTRUCTIONS_SOURCE="$CODEX_AGENTS_SOURCE"
 COPILOT_INSTRUCTIONS_TARGET="$HOME/.copilot/copilot-instructions.md"
 COPILOT_SKILLS_SOURCE="$AGENTS_SOURCE/skills"
 COPILOT_SKILLS_TARGET="$HOME/.copilot/skills"
@@ -332,6 +332,24 @@ do_link_codex_skills() {
         fi
     fi
 
+    local copilot_target_parent
+    copilot_target_parent=$(dirname "$COPILOT_INSTRUCTIONS_TARGET")
+    local legacy_copilot_source="$CONFIG_SOURCE/.copilot"
+    if is_symlink "$copilot_target_parent"; then
+        local existing_copilot_home_link
+        existing_copilot_home_link=$(readlink -f "$copilot_target_parent")
+        local real_legacy_copilot_source
+        real_legacy_copilot_source=$(readlink -f "$legacy_copilot_source")
+        if [[ "$existing_copilot_home_link" != "$real_legacy_copilot_source" ]]; then
+            write_error "Copilot home points to an unexpected location: $existing_copilot_home_link"
+            return 1
+        fi
+
+        rm "$copilot_target_parent"
+        mkdir -p "$copilot_target_parent"
+        write_success "Migrated legacy Copilot directory symlink"
+    fi
+
     if [[ -e "$COPILOT_INSTRUCTIONS_TARGET" || -L "$COPILOT_INSTRUCTIONS_TARGET" ]]; then
         if is_symlink "$COPILOT_INSTRUCTIONS_TARGET"; then
             local existing_copilot_link
@@ -352,7 +370,7 @@ do_link_codex_skills() {
     fi
 
     if [[ ! -e "$COPILOT_INSTRUCTIONS_TARGET" && ! -L "$COPILOT_INSTRUCTIONS_TARGET" ]]; then
-        mkdir -p "$(dirname "$COPILOT_INSTRUCTIONS_TARGET")"
+        mkdir -p "$copilot_target_parent"
         if ln -s "$COPILOT_INSTRUCTIONS_SOURCE" "$COPILOT_INSTRUCTIONS_TARGET" 2>/dev/null; then
             write_success "Copilot instructions linked: $COPILOT_INSTRUCTIONS_TARGET -> $COPILOT_INSTRUCTIONS_SOURCE"
         else

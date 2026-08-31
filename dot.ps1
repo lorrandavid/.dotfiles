@@ -41,7 +41,7 @@ $script:AgentsSource = Join-Path $ConfigSource ".agents"
 $script:AgentsTarget = Join-Path $env:USERPROFILE ".agents"
 $script:CodexAgentsSource = Join-Path $script:AgentsSource "AGENTS.md"
 $script:CodexAgentsTarget = Join-Path $env:USERPROFILE ".codex\AGENTS.md"
-$script:CopilotInstructionsSource = Join-Path $ConfigSource ".copilot\copilot-instructions.md"
+$script:CopilotInstructionsSource = $script:CodexAgentsSource
 $script:CopilotInstructionsTarget = Join-Path $env:USERPROFILE ".copilot\copilot-instructions.md"
 $script:CopilotSkillsSource = Join-Path $script:AgentsSource "skills"
 $script:CopilotSkillsTarget = Join-Path $env:USERPROFILE ".copilot\skills"
@@ -415,6 +415,27 @@ function Invoke-LinkAgents {
             Write-Success "Codex AGENTS.md linked: $($script:CodexAgentsTarget) -> $($script:CodexAgentsSource)"
         }
 
+        $copilotTargetParent = Split-Path -Parent $script:CopilotInstructionsTarget
+        $legacyCopilotSource = Join-Path $script:ConfigSource ".copilot"
+        $copilotTargetParentItem = Get-Item -LiteralPath $copilotTargetParent -Force -ErrorAction SilentlyContinue
+        if ($copilotTargetParentItem -and (($copilotTargetParentItem.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) {
+            $existingCopilotHomeTarget = [string]$copilotTargetParentItem.Target
+            if (-not [System.IO.Path]::IsPathRooted($existingCopilotHomeTarget)) {
+                $copilotHomeParent = Split-Path -Parent $copilotTargetParent
+                $existingCopilotHomeTarget = Join-Path $copilotHomeParent $existingCopilotHomeTarget
+            }
+
+            $existingCopilotHomeTarget = [System.IO.Path]::GetFullPath($existingCopilotHomeTarget)
+            $expectedCopilotHomeTarget = [System.IO.Path]::GetFullPath($legacyCopilotSource)
+            if (-not [string]::Equals($existingCopilotHomeTarget, $expectedCopilotHomeTarget, [System.StringComparison]::OrdinalIgnoreCase)) {
+                throw "Copilot home points to an unexpected location: $existingCopilotHomeTarget"
+            }
+
+            Remove-Item -LiteralPath $copilotTargetParent -Force
+            New-Item -ItemType Directory -Path $copilotTargetParent -Force | Out-Null
+            Write-Success "Migrated legacy Copilot directory symlink"
+        }
+
         if (Test-Path -LiteralPath $script:CopilotInstructionsTarget) {
             if (Test-IsSymlink $script:CopilotInstructionsTarget) {
                 $existingLink = (Get-Item -LiteralPath $script:CopilotInstructionsTarget).Target
@@ -436,7 +457,6 @@ function Invoke-LinkAgents {
             }
         }
 
-        $copilotTargetParent = Split-Path -Parent $script:CopilotInstructionsTarget
         if (-not (Test-Path -LiteralPath $copilotTargetParent)) {
             New-Item -ItemType Directory -Path $copilotTargetParent -Force | Out-Null
         }
