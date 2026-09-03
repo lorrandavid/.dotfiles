@@ -2,6 +2,8 @@
 
 Use these patterns after the core workflow in `SKILL.md`. Examples are single-line to avoid shell-specific continuation syntax. Replace every placeholder, quote substituted values for the active shell, and retain `--only-show-errors --output json` for data operations.
 
+Treat every `az devops invoke` example below as a fallback. Before using it, verify that the installed Azure DevOps CLI extension has no first-class command or option for the requested operation. Prefer first-class commands even when they require several verified steps. Use REST only for the unsupported portion, and record the missing CLI capability.
+
 ## Contents
 
 - [Shared inspection](#shared-inspection)
@@ -89,13 +91,16 @@ Use `@Me` for the authenticated identity and `@CurrentIteration` only when the t
 
 ### Create — mutating
 
-For a title-only or otherwise simple scalar create, the first-class command is acceptable:
+Use the first-class create command whenever its options can express the requested fields:
 
 ```text
 az boards work-item create --org <org-url> --project <project> --type <work-item-type> --title <title> --only-show-errors --output json
+az boards work-item create --org <org-url> --project <project> --type <work-item-type> --title <title> --description <description> --fields <field-reference-name>=<value> --only-show-errors --output json
 ```
 
-When creation includes a description, acceptance criteria, custom multiline fields, or several coupled properties, inspect field metadata and write one JSON Patch array to a UTF-8 file. Include one `add` operation per requested field, using its reference name:
+Pass descriptions and supported custom fields through the first-class command, following the file-to-one-argument protocol above. Inspect field metadata before sending process-specific fields.
+
+Only when `az boards work-item create --help` exposes no option capable of preserving a requested field, write a JSON Patch array to a UTF-8 file for the unsupported operation. Include one `add` operation per requested field, using its reference name:
 
 ```json
 [
@@ -111,7 +116,7 @@ Create the item with that payload:
 az devops invoke --area wit --resource workItems --route-parameters project=<project> type=<work-item-type> --org <org-url> --api-version 7.1 --http-method POST --media-type application/json-patch+json --in-file <work-item-patch.json> --only-show-errors --output json
 ```
 
-Pass only requested fields. Process-specific reference names and types vary; never guess them. Render Markdown source to equivalent HTML for an `html` field. Verify every field from an expanded work-item read. Do not use a lossy first-class create followed by field repairs when this endpoint can create the requested state in one request.
+Pass only requested fields. Process-specific reference names and types vary; never guess them. Render Markdown source to equivalent HTML for an `html` field. Verify every field from an expanded work-item read. Do not choose this REST fallback merely to combine fields that available first-class commands can set safely.
 
 ### Update — mutating
 
@@ -121,7 +126,15 @@ Read the current item, then update only requested fields:
 az boards work-item update --id <work-item-id> --org <org-url> --title <title> --state <state> --assigned-to <identity> --iteration <iteration-path> --fields <field-reference-name>=<value> --only-show-errors --output json
 ```
 
-Add a discussion comment:
+For a discussion comment whose required content can be preserved by the first-class command, use:
+
+```text
+az boards work-item update --id <work-item-id> --org <org-url> --discussion <comment> --only-show-errors --output json
+```
+
+Load multiline `<comment>` from a UTF-8 file into one native shell variable as described above. Read the stored discussion back and verify it.
+
+The first-class discussion option does not expose an explicit content-format selector. Only when the requested result requires an explicit Markdown format that the first-class command cannot express, use the comments REST fallback:
 
 ```json
 {
@@ -135,7 +148,7 @@ Write that object to a UTF-8 JSON file, then use the comments API with its forma
 az devops invoke --area wit --resource comments --route-parameters project=<project> workItemId=<work-item-id> --query-parameters 'format=markdown' --org <org-url> --api-version 7.1-preview.4 --http-method POST --in-file <comment.json> --only-show-errors --output json
 ```
 
-Classify discussion updates as `work-item.comment`. Do not use `az boards work-item update --discussion` for formatted content because it does not declare the content format. Read the returned comment and then fetch it through the comments API; verify `format` is `markdown`, `text` matches the source, and `renderedText` is present. Read the item back after creation or field updates.
+Classify discussion updates as `work-item.comment`. For the REST fallback, read the returned comment and then fetch it through the comments API; verify `format` is `markdown`, `text` matches the source, and `renderedText` is present. Read the item back after creation or field updates.
 
 ## Work-item state discovery and transitions
 
@@ -417,7 +430,13 @@ az repos pr show --id <pr-id> --org <org-url> --query '{id:pullRequestId,title:t
 
 ### Create — mutating
 
-Use `az repos pr create` only for a simple PR whose requested state is fully represented by reliable scalar arguments. If creation includes a multiline description, draft mode, work-item links, or reviewers, create it atomically through the Git REST resource. Resolve the repository ID and reviewer identity IDs first. Generate this body in a UTF-8 JSON file with a JSON-aware serializer; omit properties the user did not request:
+Use `az repos pr create` first whenever its installed options can represent the requested PR, including multiline descriptions, draft mode, work-item links, and reviewers. Load multiline descriptions from a UTF-8 file into one native shell variable. Resolve repository and reviewer identities before mutation, then verify every requested property after creation.
+
+```text
+az repos pr create --repository <repo-name-or-id> --project <project> --org <org-url> --source-branch <source-branch> --target-branch <target-branch> --title <title> --description <description> --draft <true-or-false> --work-items <work-item-id-1> <work-item-id-2> --reviewers <identity-1> <identity-2> --only-show-errors --output json
+```
+
+Only if `az repos pr create --help` lacks a command option required for the requested PR, use the Git REST create fallback. Generate this body in a UTF-8 JSON file with a JSON-aware serializer and omit properties the user did not request:
 
 ```json
 {
@@ -443,13 +462,17 @@ Then make one create request:
 az devops invoke --area git --resource pullRequests --route-parameters project=<project> repositoryId=<repository-id> --org <org-url> --api-version 7.1 --http-method POST --in-file <pull-request.json> --only-show-errors --output json
 ```
 
-Use full `refs/heads/...` ref names in the REST body. Do not create the PR first and then repair its description, draft state, work-item links, or reviewers when they can be included in this payload. Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
+Use full `refs/heads/...` ref names in the REST body. Do not choose REST merely to combine values that the first-class create command and its supported options can preserve. Do not enable auto-complete, policy bypass, source-branch deletion, or work-item transitions unless explicitly requested.
 
 Read the PR back unfiltered and separately list linked work items and reviewers. Verify the title, source and target refs, raw description, `isDraft`, linked work-item IDs, reviewer IDs, and required-reviewer flags before reporting success.
 
 ### Update — mutating or high-impact
 
-A simple scalar metadata update may use `az repos pr update`. For multiline Markdown or an update combining several properties, write only the requested properties to a UTF-8 JSON file and use one REST PATCH:
+Use `az repos pr update` first for every property it supports, including multiline Markdown loaded from a UTF-8 file into one native shell variable. Only when the installed command lacks an option required for the requested update, write only the unsupported properties to a UTF-8 JSON file and use the REST PATCH fallback:
+
+```text
+az repos pr update --id <pr-id> --org <org-url> --title <title> --description <description> --draft <true-or-false> --only-show-errors --output json
+```
 
 ```json
 {
