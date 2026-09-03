@@ -1,0 +1,28 @@
+{
+  "name": "gruvbuddy-earthy-theme",
+  "displayName": "Gruvbuddy Earthy",
+  "description": "An earthy, lifted Gruvbuddy-inspired dark theme for VS Code.",
+  "version": "1.0.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "keywords": [
+    "theme",
+    "dark theme",
+    "gruvbox",
+    "gruvbuddy"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Gruvbuddy Earthy",
+        "uiTheme": "vs-dark",
+        "path": "./themes/gruvbuddy-earthy-color-theme.json"
+      }
+    ]
+  }
+}
