@@ -913,7 +913,7 @@ function Invoke-Doctor {
     }
 
     # Check common tools
-    $tools = @("git", "nvim", "code")
+    $tools = @("git", "nvim", "code", "psmux")
     foreach ($tool in $tools) {
         if (Get-Command $tool -ErrorAction SilentlyContinue) {
             Write-Success "$tool is installed"
@@ -960,7 +960,8 @@ function Invoke-Install {
 
     $tools = @(
         @{ Name = "wezterm"; WingetId = "wez.wezterm" },
-        @{ Name = "nvim"; WingetId = "Neovim.Neovim" }
+        @{ Name = "nvim"; WingetId = "Neovim.Neovim" },
+        @{ Name = "psmux"; WingetId = "marlocarlo.psmux" }
     )
 
     foreach ($tool in $tools) {
@@ -1013,6 +1014,8 @@ function Invoke-Setup {
     Write-Header "Running full setup (install + link)"
     Invoke-Install
     Invoke-Link
+    Write-Header "Installing psmux plugins"
+    & (Join-Path $script:DotfilesDir "scripts\install-psmux-plugins.ps1")
     Write-Header "Setup complete!"
 }
 
@@ -1032,7 +1035,7 @@ function Show-Help {
     doctor    Run diagnostics and check installation
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
-    install   Install required tools (wezterm, nvim) via winget
+    install   Install required tools (wezterm, nvim, psmux) via winget
     update-skills  Update project skills without installing Claude skills
     help      Show this help message
 

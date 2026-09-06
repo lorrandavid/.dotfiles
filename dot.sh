@@ -51,7 +51,7 @@ get_config_items() {
     if [[ ! -d "$CONFIG_SOURCE" ]]; then
         return
     fi
-    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname '.agents' ! -iname '.copilot' ! -iname 'opencode' ! -iname 'powershell' ! -iname 'shared' ! -iname 'windows-terminal' ! -iname 'vscode' -printf '%f\n' | sort
+    find "$CONFIG_SOURCE" -mindepth 1 -maxdepth 1 -type d ! -iname '.agents' ! -iname '.copilot' ! -iname 'opencode' ! -iname 'powershell' ! -iname 'psmux' ! -iname 'shared' ! -iname 'windows-terminal' ! -iname 'vscode' -printf '%f\n' | sort
 }
 
 config_in_list() {

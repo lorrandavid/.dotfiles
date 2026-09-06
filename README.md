@@ -13,6 +13,7 @@ Configs currently managed (folders under `./.config/`):
 
 - `nvim`
 - `powershell` (Windows only — skipped on Linux)
+- `psmux` (Windows only — skipped on Linux)
 - `windows-terminal` (Windows scheme snippets — skipped on Linux)
 - `wezterm`
 - `zed`
@@ -68,6 +69,7 @@ Running `install` checks for each tool and installs it if missing:
 |------|---------|-------------|
 | `wezterm` | `winget install wez.wezterm` | package manager (manual on apt) |
 | `nvim` | `winget install Neovim.Neovim` | package manager |
+| `psmux` | `winget install marlocarlo.psmux` | Windows only |
 
 ## How it works
 
@@ -76,7 +78,7 @@ Running `install` checks for each tool and installs it if missing:
 - When `link` finds an existing real folder/file at the target (not a symlink), it moves it into `./backups/<timestamp>/` before creating the symlink.
 - `unlink` removes symlinks and restores from the **latest** backup folder if available. You can pass one or more config names to target specific entries only.
 - On Linux, `dot.sh` also ensures `XDG_CONFIG_HOME` is set in `~/.profile`.
-- The `powershell` config folder is skipped on Linux.
+- The `powershell` and `psmux` config folders are skipped on Linux.
 
 ## Backups
 
@@ -106,3 +108,5 @@ Clone the repo and run `setup` to install all tools and create symlinks in one s
 - On Windows, the `link` command requires Administrator privileges; the script will prompt for elevation automatically.
 - On Linux, symlinks do not require elevated privileges.
 - The `windows-terminal` folder stores reusable scheme JSON snippets for manual import into Windows Terminal's `settings.json`; linking it into `~/.config` or `%USERPROFILE%\.config` does not apply the scheme automatically.
+- `dot.ps1 setup` installs the psmux plugins declared in `.config/psmux/psmux.conf`. PPM keeps plugin code in `%USERPROFILE%\.psmux\plugins`, outside this repository; use `Prefix + I`, `Prefix + U`, and `Prefix + M` to install, update, and remove plugins later.
+- Clipboard copy/yank is built into current psmux releases, so the retired `psmux-yank` plugin is represented by `set-clipboard on` instead of being installed.
