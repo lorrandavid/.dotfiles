@@ -18,7 +18,7 @@ Configs currently managed (folders under `./.config/`):
 - `wezterm`
 - `zed`
 
-The `.config/shared` directory is deprecated and retained only for compatibility. The installers intentionally ignore it. Global agent configuration lives under `.config/.agents`; the installers link that directory to `~/.agents`, link its `AGENTS.md` directly to both `~/.codex/AGENTS.md` and `~/.copilot/copilot-instructions.md`, and link its `skills` directory to `~/.copilot/skills`. Both harnesses therefore load one versioned policy without instruction-file imports. Linking also migrates the legacy whole-directory `~/.copilot` symlink to this file-level layout.
+The `.config/shared` directory is deprecated and retained only for compatibility. The installers intentionally ignore it. Global agent configuration lives under `.config/.agents`; the installers link that directory to `~/.agents` and its `AGENTS.md` to `~/.codex/AGENTS.md`. For Copilot, they link `AGENTS.md` as `copilot-instructions.md` and the `skills` directory inside `$XDG_CONFIG_HOME/.copilot` (or `~/.copilot` when XDG_CONFIG_HOME is unset). The link command configures XDG_CONFIG_HOME before resolving these destinations. Both harnesses therefore load one versioned policy without instruction-file imports or machine-specific skill-directory settings. Linking also migrates a legacy whole-directory symlink at the resolved Copilot location to this file-level layout.
 
 ## Prerequisites
 

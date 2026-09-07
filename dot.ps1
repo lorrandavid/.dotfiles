@@ -42,9 +42,15 @@ $script:AgentsTarget = Join-Path $env:USERPROFILE ".agents"
 $script:CodexAgentsSource = Join-Path $script:AgentsSource "AGENTS.md"
 $script:CodexAgentsTarget = Join-Path $env:USERPROFILE ".codex\AGENTS.md"
 $script:CopilotInstructionsSource = $script:CodexAgentsSource
-$script:CopilotInstructionsTarget = Join-Path $env:USERPROFILE ".copilot\copilot-instructions.md"
 $script:CopilotSkillsSource = Join-Path $script:AgentsSource "skills"
-$script:CopilotSkillsTarget = Join-Path $env:USERPROFILE ".copilot\skills"
+
+function Set-CopilotTargets {
+    # Copilot uses XDG_CONFIG_HOME when set, otherwise the user home.
+    $copilotConfigRoot = if ($env:XDG_CONFIG_HOME) { $env:XDG_CONFIG_HOME } else { $env:USERPROFILE }
+    $script:CopilotInstructionsTarget = Join-Path $copilotConfigRoot ".copilot\copilot-instructions.md"
+    $script:CopilotSkillsTarget = Join-Path $copilotConfigRoot ".copilot\skills"
+}
+Set-CopilotTargets
 
 # Colors for output
 function Write-Header { param($Message) Write-Host "`n==> $Message" -ForegroundColor Blue }
@@ -647,6 +653,7 @@ function Invoke-Link {
     Write-Header "Creating symlinks for dotfiles"
 
     Ensure-XdgConfigHome
+    Set-CopilotTargets
 
     if (-not (Test-IsAdmin)) {
         Write-Info "Requesting Administrator privileges..."

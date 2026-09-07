@@ -29,9 +29,15 @@ AGENTS_TARGET="$HOME/.agents"
 CODEX_AGENTS_SOURCE="$AGENTS_SOURCE/AGENTS.md"
 CODEX_AGENTS_TARGET="$HOME/.codex/AGENTS.md"
 COPILOT_INSTRUCTIONS_SOURCE="$CODEX_AGENTS_SOURCE"
-COPILOT_INSTRUCTIONS_TARGET="$HOME/.copilot/copilot-instructions.md"
 COPILOT_SKILLS_SOURCE="$AGENTS_SOURCE/skills"
-COPILOT_SKILLS_TARGET="$HOME/.copilot/skills"
+
+set_copilot_targets() {
+    # Copilot uses XDG_CONFIG_HOME when set, otherwise the user home.
+    local copilot_config_root="${XDG_CONFIG_HOME:-$HOME}"
+    COPILOT_INSTRUCTIONS_TARGET="$copilot_config_root/.copilot/copilot-instructions.md"
+    COPILOT_SKILLS_TARGET="$copilot_config_root/.copilot/skills"
+}
+set_copilot_targets
 
 # Colors
 BLUE='\033[0;34m'
@@ -554,6 +560,7 @@ do_status_codex_skills() {
 do_link() {
     write_header "Creating symlinks for dotfiles"
     ensure_xdg_config_home
+    set_copilot_targets
 
     mapfile -t configs < <(get_config_items)
     if [[ ${#configs[@]} -eq 0 ]]; then
