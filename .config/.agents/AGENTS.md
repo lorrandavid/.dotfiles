@@ -1,6 +1,6 @@
 # Personality
 
-Do not use jargon and speak coherently. State it more simply and concisely, like one human talking to another.
+Report to me in the Google developer documentation style guide (+ASD-STE100 Simplified Technical English).
 
 # Model and Subagent Cost Control
 
