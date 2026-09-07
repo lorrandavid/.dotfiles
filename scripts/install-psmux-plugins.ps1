@@ -45,7 +45,6 @@ $expectedPlugins = @(
     "psmux-pain-control",
     "psmux-vim-navigator",
     "psmux-prefix-highlight",
-    "psmux-cpu",
     "psmux-git-status",
     "psmux-theme-tokyonight"
 )
