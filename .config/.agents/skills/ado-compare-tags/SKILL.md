@@ -85,6 +85,8 @@ Build each side from its own data. Use the effective classification for the prim
 
 Preserve source-controlled and Azure DevOps content exactly: tag names, commit hashes, branch names, work-item types, states, titles, PR titles, descriptions, acceptance criteria, and URLs. Localize only report-authored prose, headings, labels, explanations, and checklist text. Do not translate code or source data.
 
+Apply the `bro` skill's writing rule to all report-authored prose and the chat summary: use short, plain sentences; prefer familiar words; remove jargon when it is not needed for accuracy. The renderer's fixed copy already follows this rule. When changing that copy, update the renderer and its tests—never ask the model to rewrite a generated page.
+
 ## Assess deployment evidence
 
 Show a prominent decision-support status. Derive it mechanically; do not improvise a safety verdict.
@@ -114,9 +116,23 @@ Surface these risk signals without inventing severity:
 
 ## Produce the visual report
 
-Apply the `show-me` skill and create one self-contained HTML file in the OS temporary directory. Use a unique name such as `ado-tag-comparison-<timestamp>.html`; do not add generated reports to the repository. Write the file as UTF-8 and place `<meta charset="utf-8">` as the first element inside `<head>`. Preserve Unicode text directly—never reinterpret UTF-8 bytes as Windows-1252/Latin-1 or double-encode localized content. Escape all Azure DevOps and Git values before inserting them into HTML. Do not load remote scripts, fonts, or styles.
+Do not ask the model to design or write the report HTML. The versioned template at `assets/report-template.html` is the visual authority for colors, typography, spacing, components, section order, responsive behavior, and localized labels. The deterministic renderer at `scripts/render_ado_report.py` owns the EN/PT-BR copy, escapes dynamic values, and writes strict UTF-8. Never modify the generated HTML per run. Change the checked-in template, renderer copy, and tests when the design or wording must evolve.
 
-Open the report with the platform-appropriate command. If opening is unavailable, provide the absolute path. The report must work on desktop and mobile and contain, in this order:
+After collection:
+
+1. Save the script's exact JSON stdout as a UTF-8 file in the OS temporary directory.
+2. Run the renderer with native argument handling:
+
+   ```text
+   <python-launcher> <skill-directory>/scripts/render_ado_report.py <evidence-json> --language <en|pt-BR>
+   ```
+
+   Omit `--output` to let the renderer create a unique `ado-tag-comparison-*.html` file in the OS temporary directory. Its stdout is the absolute report path.
+3. Read the generated file back as strict UTF-8. For PT-BR, verify representative localized text such as `Decisão`, `Evidência` and `Não avaliado` appears unchanged.
+4. Apply `show-me` only to present/open the generated artifact; do not let it regenerate or restyle the page.
+5. Open the report with the platform-appropriate command. If opening is unavailable, provide the absolute path.
+
+The fixed template works on desktop and mobile and contains, in this order:
 
 1. **Header** — repository, `<base> → <target>`, localized generation context, and links back to Azure DevOps.
 2. **Decision-support banner** — one of the four statuses above, a one-sentence reason, and an explicit “human decision required” note.
@@ -129,7 +145,7 @@ Open the report with the platform-appropriate command. If opening is unavailable
 9. **Deployment checklist** — separate observed facts from items not evaluated. Render unevaluated checks as neutral unchecked items, never as failures.
 10. **Method and limitations** — Git reachability, stable patch equivalence, exact merge-commit association, hierarchy derivation, collection timestamp, and the report's safety limitation.
 
-Keep the first screen scannable. Use color as reinforcement, not as the only signal. Label both directional sides plainly; do not hide an empty reverse side. Keep detailed descriptions collapsible so the capability and risk summary remains readable. Before opening a PT-BR report, read the generated file back as strict UTF-8 and verify representative localized text such as `Decisão`, `Evidência` and `Não avaliado` appears unchanged.
+The template keeps the first screen scannable, uses color only as reinforcement, keeps both directional sides visible, and makes detailed descriptions collapsible. Do not override these choices in a generated report.
 
 Also return a concise localized chat summary containing:
 
