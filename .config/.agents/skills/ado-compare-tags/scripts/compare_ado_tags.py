@@ -245,6 +245,169 @@ def relationship(repo: Path, base_commit: str, target_commit: str) -> str:
     return "diverged"
 
 
+def commit_parents(repo: Path, commit_id: str) -> list[str]:
+    line = git_output(repo, "rev-list", "--parents", "-n", "1", commit_id)
+    return line.split()[1:]
+
+
+def patch_id_index(repo: Path, revision: str) -> dict[str, dict[str, Any]]:
+    git = executable("git")
+    log_process = subprocess.Popen(
+        [
+            git,
+            "-C",
+            str(repo),
+            "log",
+            "--no-merges",
+            "--pretty=format:commit %H",
+            "--patch",
+            "--binary",
+            revision,
+        ],
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if log_process.stdout is None:
+        log_process.kill()
+        raise ComparisonError("Could not stream Git history for patch-equivalence analysis.")
+
+    patch_process = subprocess.run(
+        [git, "patch-id", "--stable"],
+        stdin=log_process.stdout,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    log_process.stdout.close()
+    log_stderr = log_process.stderr.read() if log_process.stderr else ""
+    if log_process.stderr:
+        log_process.stderr.close()
+    log_returncode = log_process.wait()
+    if log_returncode != 0:
+        detail = log_stderr.strip() or f"git log exited with code {log_returncode}"
+        raise ComparisonError(redact_secrets(detail))
+    if patch_process.returncode != 0:
+        detail = patch_process.stderr.strip() or f"git patch-id exited with code {patch_process.returncode}"
+        raise ComparisonError(redact_secrets(detail))
+
+    by_patch: dict[str, list[str]] = {}
+    by_commit: dict[str, str] = {}
+    for line in patch_process.stdout.splitlines():
+        fields = line.split()
+        if len(fields) != 2:
+            continue
+        patch_id, commit_id = fields
+        normalized_commit = commit_id.lower()
+        by_commit[normalized_commit] = patch_id
+        by_patch.setdefault(patch_id, []).append(normalized_commit)
+    return {"byPatch": by_patch, "byCommit": by_commit}
+
+
+def classify_commits(
+    repo: Path,
+    commits: list[str],
+    own_patch_index: dict[str, dict[str, Any]],
+    opposite_patch_index: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    evidence: dict[str, dict[str, Any]] = {}
+    for commit_id in commits:
+        normalized_commit = commit_id.lower()
+        parents = commit_parents(repo, commit_id)
+        item: dict[str, Any] = {
+            "commitId": commit_id,
+            "subject": git_output(repo, "show", "-s", "--format=%s", commit_id),
+            "parentCount": len(parents),
+            "patchStatus": "notApplicable" if len(parents) > 1 else "unavailable",
+            "patchId": None,
+            "equivalentCommitIds": [],
+        }
+        patch_id = own_patch_index["byCommit"].get(normalized_commit)
+        if patch_id:
+            equivalents = list(opposite_patch_index["byPatch"].get(patch_id, []))
+            item["patchId"] = patch_id
+            item["equivalentCommitIds"] = equivalents
+            item["patchStatus"] = "equivalent" if equivalents else "new"
+        evidence[normalized_commit] = item
+    return evidence
+
+
+def trees_equal(repo: Path, left: str, right: str) -> bool:
+    result = run(
+        [executable("git"), "-C", str(repo), "diff", "--quiet", left, right],
+        check=False,
+    )
+    if result.returncode not in (0, 1):
+        raise ComparisonError(result.stderr.strip() or "Could not compare Git trees.")
+    return result.returncode == 0
+
+
+def classify_pull_request_change(
+    repo: Path,
+    merge_commit: str,
+    own_patch_index: dict[str, dict[str, Any]],
+    opposite_patch_index: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    parents = commit_parents(repo, merge_commit)
+    if len(parents) <= 1:
+        payload_ids = [merge_commit]
+    elif len(parents) == 2:
+        payload_ids = rev_list(repo, parents[1], parents[0])
+    else:
+        return {
+            "status": "indeterminate",
+            "reason": "octopusMerge",
+            "payloadCommitIds": [],
+            "newPatchCount": 0,
+            "equivalentPatchCount": 0,
+            "unavailablePatchCount": 0,
+            "equivalentCommits": [],
+        }
+
+    payload = classify_commits(repo, payload_ids, own_patch_index, opposite_patch_index)
+    non_merge = [item for item in payload.values() if item["parentCount"] <= 1]
+    equivalent = [item for item in non_merge if item["patchStatus"] == "equivalent"]
+    new = [item for item in non_merge if item["patchStatus"] == "new"]
+    unavailable = [item for item in non_merge if item["patchStatus"] == "unavailable"]
+
+    if equivalent and not new and not unavailable:
+        status = "alreadyPresent"
+        reason = "allPayloadPatchesEquivalent"
+    elif equivalent:
+        status = "partiallyAlreadyPresent"
+        reason = "mixedPayloadPatches"
+    elif new:
+        status = "new"
+        reason = "newPayloadPatches"
+    elif len(parents) == 2 and trees_equal(repo, parents[0], merge_commit):
+        status = "alreadyPresent"
+        reason = "mergeTreeMatchesFirstParent"
+    else:
+        status = "indeterminate"
+        reason = "patchEvidenceUnavailable"
+
+    return {
+        "status": status,
+        "reason": reason,
+        "payloadCommitIds": payload_ids,
+        "newPatchCount": len(new),
+        "equivalentPatchCount": len(equivalent),
+        "unavailablePatchCount": len(unavailable),
+        "equivalentCommits": [
+            {
+                "commitId": item["commitId"],
+                "equivalentCommitIds": item["equivalentCommitIds"],
+            }
+            for item in equivalent
+        ],
+    }
+
+
 def chunks(values: list[str], size: int) -> Iterable[list[str]]:
     for index in range(0, len(values), size):
         yield values[index : index + size]
@@ -457,6 +620,9 @@ def collect_side(
     git_repo: Path,
     repository: dict[str, str],
     work_item_cache: dict[int, tuple[dict[str, Any], int | None]],
+    commit_evidence: dict[str, dict[str, Any]],
+    own_patch_index: dict[str, dict[str, Any]],
+    opposite_patch_index: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     shallow_prs, matched_commits = query_pull_requests(commits, repository)
     pull_requests: list[dict[str, Any]] = []
@@ -472,6 +638,22 @@ def collect_side(
                     f"PR #{pr_id} was returned for a merge commit but has status {pr['status']!r}; it was excluded."
                 )
                 continue
+            merge_commit = str(pr.get("lastMergeCommit") or "")
+            pr["changeClassification"] = (
+                classify_pull_request_change(
+                    git_repo, merge_commit, own_patch_index, opposite_patch_index
+                )
+                if merge_commit
+                else {
+                    "status": "indeterminate",
+                    "reason": "missingMergeCommit",
+                    "payloadCommitIds": [],
+                    "newPatchCount": 0,
+                    "equivalentPatchCount": 0,
+                    "unavailablePatchCount": 0,
+                    "equivalentCommits": [],
+                }
+            )
             direct_ids = linked_work_item_ids(pr_id, repository)
             pr["directWorkItemIds"] = direct_ids
         except ComparisonError as exc:
@@ -514,19 +696,69 @@ def collect_side(
             pr["workItemPaths"].append(path)
         pull_requests.append(pr)
 
+    pr_classifications = {
+        pr["id"]: pr["changeClassification"]["status"] for pr in pull_requests
+    }
+    for item in side_items.values():
+        contributing_prs = item.get("viaPullRequestIds", [])
+        item["changeClassifications"] = sorted(
+            {pr_classifications[pr_id] for pr_id in contributing_prs if pr_id in pr_classifications}
+        )
+        item["effectivePullRequestIds"] = [
+            pr_id
+            for pr_id in contributing_prs
+            if pr_classifications.get(pr_id) != "alreadyPresent"
+        ]
+        item["alreadyPresentPullRequestIds"] = [
+            pr_id
+            for pr_id in contributing_prs
+            if pr_classifications.get(pr_id) == "alreadyPresent"
+        ]
+
     unmatched_ids = [commit for commit in commits if commit.lower() not in matched_commits]
-    unmatched = []
-    for commit_id in unmatched_ids:
-        subject = git_output(git_repo, "show", "-s", "--format=%s", commit_id)
-        unmatched.append({"commitId": commit_id, "subject": subject})
+    unmatched = [commit_evidence[commit_id.lower()] for commit_id in unmatched_ids]
+    effective_unmatched = [
+        item for item in unmatched if item["patchStatus"] != "equivalent"
+    ]
+    equivalent_commits = [
+        item for item in commit_evidence.values() if item["patchStatus"] == "equivalent"
+    ]
+    effective_prs = [
+        pr for pr in pull_requests if pr["changeClassification"]["status"] != "alreadyPresent"
+    ]
+    already_present_prs = [
+        pr for pr in pull_requests if pr["changeClassification"]["status"] == "alreadyPresent"
+    ]
 
     return {
         "commitCount": len(commits),
+        "effectiveCommitCount": sum(
+            1
+            for item in commit_evidence.values()
+            if item["patchStatus"] in {"new", "unavailable"}
+        ),
+        "equivalentCommitCount": len(equivalent_commits),
         "pullRequestCount": len(pull_requests),
+        "effectivePullRequestCount": len(effective_prs),
+        "alreadyPresentPullRequestCount": len(already_present_prs),
         "workItemCount": len(side_items),
+        "effectiveWorkItemCount": sum(
+            1 for item in side_items.values() if item["effectivePullRequestIds"]
+        ),
+        "alreadyPresentWorkItemCount": sum(
+            1
+            for item in side_items.values()
+            if item["alreadyPresentPullRequestIds"] and not item["effectivePullRequestIds"]
+        ),
+        "commits": [commit_evidence[commit_id.lower()] for commit_id in commits],
         "pullRequests": pull_requests,
         "workItems": sorted(side_items.values(), key=lambda item: (item["category"], item["id"])),
         "unmatchedCommits": unmatched,
+        "effectiveUnmatchedCommits": effective_unmatched,
+        "patchEquivalence": {
+            "equivalentCommits": equivalent_commits,
+            "method": "git patch-id --stable against all non-merge commits reachable from the opposite tag",
+        },
         "warnings": warnings,
         "complete": not warnings,
     }
@@ -551,13 +783,39 @@ def compare(repository_url: str, base_tag: str, target_tag: str) -> dict[str, An
         target_only_commits = rev_list(git_repo, target_commit, base_commit)
         base_only_commits = rev_list(git_repo, base_commit, target_commit)
 
+        print("Calculating patch equivalence across both tag histories...", file=sys.stderr)
+        base_patch_index = patch_id_index(git_repo, base_commit)
+        target_patch_index = patch_id_index(git_repo, target_commit)
+        target_evidence = classify_commits(
+            git_repo, target_only_commits, target_patch_index, base_patch_index
+        )
+        base_evidence = classify_commits(
+            git_repo, base_only_commits, base_patch_index, target_patch_index
+        )
+
         print(
             f"Resolving PRs for {len(target_only_commits)} target-only and {len(base_only_commits)} base-only commits...",
             file=sys.stderr,
         )
         work_item_cache: dict[int, tuple[dict[str, Any], int | None]] = {}
-        target_side = collect_side(target_only_commits, git_repo, repository, work_item_cache)
-        base_side = collect_side(base_only_commits, git_repo, repository, work_item_cache)
+        target_side = collect_side(
+            target_only_commits,
+            git_repo,
+            repository,
+            work_item_cache,
+            target_evidence,
+            target_patch_index,
+            base_patch_index,
+        )
+        base_side = collect_side(
+            base_only_commits,
+            git_repo,
+            repository,
+            work_item_cache,
+            base_evidence,
+            base_patch_index,
+            target_patch_index,
+        )
         relation = relationship(git_repo, base_commit, target_commit)
 
     warnings = [*target_side["warnings"], *base_side["warnings"]]
@@ -588,7 +846,7 @@ def compare(repository_url: str, base_tag: str, target_tag: str) -> dict[str, An
         "completeness": {
             "complete": not warnings,
             "warnings": warnings,
-            "method": "Git reachability plus Azure DevOps pullRequestQuery(type=lastMergeCommit)",
+            "method": "Git reachability, stable patch equivalence, and Azure DevOps pullRequestQuery(type=lastMergeCommit)",
         },
     }
 
