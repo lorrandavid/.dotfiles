@@ -1,4 +1,4 @@
 interface:
   display_name: "Compare ADO Tags"
-  short_description: "Summarize PR work items between tags"
-  default_prompt: "Use $ado-compare-tags to compare an Azure DevOps repository between a base tag and a target tag."
+  short_description: "Visual deployment evidence between tags"
+  default_prompt: "Use $ado-compare-tags to compare an Azure DevOps repository between a base tag and a target tag, then create a visual deployment-readiness report. Ask me for any missing required input and let me choose EN or PT-BR."
