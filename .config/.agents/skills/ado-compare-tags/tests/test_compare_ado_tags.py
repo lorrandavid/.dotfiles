@@ -1,5 +1,6 @@
 import importlib.util
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,25 @@ class Repository:
         self.run("add", "file.txt")
         self.run("commit", "--quiet", "-m", message)
         return self.run("rev-parse", "HEAD")
+
+
+class OutputDecodingTests(unittest.TestCase):
+    def test_decodes_utf8_output(self):
+        encoded = "Recálculo".encode("utf-8")
+
+        self.assertEqual("Recálculo", MODULE.decode_command_output(encoded))
+
+    def test_falls_back_to_windows_1252_without_replacement_characters(self):
+        self.assertEqual("Recálculo", MODULE.decode_command_output(b"Rec\xe1lculo"))
+
+    def test_command_capture_preserves_windows_1252_output(self):
+        command = [
+            sys.executable,
+            "-c",
+            "import os; os.write(1, b'Rec\\xe1lculo')",
+        ]
+
+        self.assertEqual("Recálculo", MODULE.run(command).stdout)
 
 
 class PatchEquivalenceTests(unittest.TestCase):

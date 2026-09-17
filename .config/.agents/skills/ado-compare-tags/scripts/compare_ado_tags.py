@@ -8,6 +8,7 @@ from functools import lru_cache
 import html
 from html.parser import HTMLParser
 import json
+import locale
 import os
 from pathlib import Path
 import re
@@ -66,21 +67,43 @@ def safe_repository_url(repository_url: str) -> str:
     return urlunparse((parsed.scheme, host, parsed.path, "", "", ""))
 
 
+def decode_command_output(value: bytes) -> str:
+    encodings = ("utf-8-sig", locale.getpreferredencoding(False), "cp1252")
+    attempted: set[str] = set()
+    for encoding in encodings:
+        normalized = encoding.casefold()
+        if normalized in attempted:
+            continue
+        attempted.add(normalized)
+        try:
+            return value.decode(encoding)
+        except (LookupError, UnicodeDecodeError):
+            continue
+    return value.decode("utf-8", errors="replace")
+
+
 def run(command: list[str], cwd: Path | None = None, check: bool = True) -> subprocess.CompletedProcess[str]:
+    environment = os.environ.copy()
+    environment["PYTHONUTF8"] = "1"
+    environment["PYTHONIOENCODING"] = "utf-8"
     result = subprocess.run(
         command,
         cwd=str(cwd) if cwd else None,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
+        env=environment,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         check=False,
     )
-    if check and result.returncode != 0:
-        detail = result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}"
+    decoded = subprocess.CompletedProcess(
+        args=result.args,
+        returncode=result.returncode,
+        stdout=decode_command_output(result.stdout),
+        stderr=decode_command_output(result.stderr),
+    )
+    if check and decoded.returncode != 0:
+        detail = decoded.stderr.strip() or decoded.stdout.strip() or f"exit code {decoded.returncode}"
         raise ComparisonError(redact_secrets(detail))
-    return result
+    return decoded
 
 
 def run_json(command: list[str]) -> Any:
