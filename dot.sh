@@ -13,7 +13,7 @@
 #   ./dot.sh doctor     # Run diagnostics
 #   ./dot.sh edit       # Open dotfiles in editor
 #   ./dot.sh install    # Install required tools via package manager
-#   ./dot.sh update-skills  # Update project skills without installing Claude skills
+#   ./dot.sh update-skills  # Update shared project skills
 #   ./dot.sh help       # Show help message
 
 set -euo pipefail
@@ -30,6 +30,11 @@ CODEX_AGENTS_SOURCE="$AGENTS_SOURCE/AGENTS.md"
 CODEX_AGENTS_TARGET="$HOME/.codex/AGENTS.md"
 COPILOT_INSTRUCTIONS_SOURCE="$CODEX_AGENTS_SOURCE"
 COPILOT_SKILLS_SOURCE="$AGENTS_SOURCE/skills"
+CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CLAUDE_INSTRUCTIONS_TARGET="$CLAUDE_HOME/CLAUDE.md"
+CLAUDE_SKILLS_TARGET="$CLAUDE_HOME/skills"
+CLAUDE_AGENTS_SOURCE="$CONFIG_SOURCE/shared/agents"
+CLAUDE_AGENTS_TARGET="$CLAUDE_HOME/agents"
 
 set_copilot_targets() {
     # Copilot uses XDG_CONFIG_HOME when set, otherwise the user home.
@@ -282,7 +287,7 @@ do_link_codex_skills() {
         return
     fi
 
-    write_header "Linking Codex skills"
+    write_header "Linking shared agent configuration"
 
     if [[ -e "$AGENTS_TARGET" || -L "$AGENTS_TARGET" ]]; then
         if is_symlink "$AGENTS_TARGET"; then
@@ -557,6 +562,93 @@ do_status_codex_skills() {
     printf "%-30s %s\n" "copilot/skills" "$copilot_skills_status"
 }
 
+link_claude_path() {
+    local source="$1" target="$2" backup_path="$3" backup_name="$4"
+    if [[ -e "$target" || -L "$target" ]]; then
+        if [[ -L "$target" ]]; then
+            if [[ "$(readlink -f "$target")" == "$(readlink -f "$source")" ]]; then
+                write_success "Claude $backup_name already linked correctly"
+                return
+            fi
+            rm "$target"
+        else
+            mkdir -p "$backup_path"
+            write_warning "Backing up existing Claude $backup_name to $backup_path/$backup_name"
+            mv "$target" "$backup_path/$backup_name"
+        fi
+    fi
+    mkdir -p "$(dirname "$target")"
+    ln -s "$source" "$target"
+    write_success "Claude $backup_name linked: $target -> $source"
+}
+
+do_link_claude() {
+    local backup_path="$1"
+    write_header "Linking Claude Code instructions, skills, and agents"
+    link_claude_path "$CODEX_AGENTS_SOURCE" "$CLAUDE_INSTRUCTIONS_TARGET" "$backup_path" "claude-CLAUDE.md"
+    if [[ -d "$CLAUDE_AGENTS_SOURCE" ]]; then
+        link_claude_path "$CLAUDE_AGENTS_SOURCE" "$CLAUDE_AGENTS_TARGET" "$backup_path" "claude-agents"
+    fi
+    mkdir -p "$CLAUDE_SKILLS_TARGET"
+    local skill
+    for skill in "$COPILOT_SKILLS_SOURCE"/*; do
+        [[ -f "$skill/SKILL.md" ]] || continue
+        link_claude_path "$skill" "$CLAUDE_SKILLS_TARGET/$(basename "$skill")" "$backup_path" "claude-skill-$(basename "$skill")"
+    done
+}
+
+unlink_claude_path() {
+    local source="$1" target="$2" backup_name="$3" latest_backup="$4"
+    [[ -L "$target" ]] || return 0
+    if [[ "$(readlink -f "$target")" != "$(readlink -f "$source")" ]]; then
+        write_warning "Claude $backup_name points elsewhere, skipping"
+        return 0
+    fi
+    rm "$target"
+    write_success "Removed Claude link: $backup_name"
+    if [[ -n "$latest_backup" && -e "$latest_backup/$backup_name" ]]; then
+        mv "$latest_backup/$backup_name" "$target"
+        write_info "Restored backup for Claude $backup_name"
+    fi
+}
+
+do_unlink_claude() {
+    local latest_backup="$1"
+    unlink_claude_path "$CODEX_AGENTS_SOURCE" "$CLAUDE_INSTRUCTIONS_TARGET" "claude-CLAUDE.md" "$latest_backup"
+    unlink_claude_path "$CLAUDE_AGENTS_SOURCE" "$CLAUDE_AGENTS_TARGET" "claude-agents" "$latest_backup"
+    local skill
+    for skill in "$COPILOT_SKILLS_SOURCE"/*; do
+        [[ -f "$skill/SKILL.md" ]] || continue
+        unlink_claude_path "$skill" "$CLAUDE_SKILLS_TARGET/$(basename "$skill")" "claude-skill-$(basename "$skill")" "$latest_backup"
+    done
+}
+
+status_claude_path() {
+    local name="$1" source="$2" target="$3" status
+    if [[ ! -e "$target" && ! -L "$target" ]]; then
+        status="Not linked"
+    elif [[ -L "$target" ]]; then
+        if [[ "$(readlink -f "$target")" == "$(readlink -f "$source")" ]]; then
+            status="Linked"
+        else
+            status="Wrong target"
+        fi
+    else
+        status="Exists (not symlink)"
+    fi
+    printf "%-30s %s\n" "$name" "$status"
+}
+
+do_status_claude() {
+    status_claude_path "claude/CLAUDE.md" "$CODEX_AGENTS_SOURCE" "$CLAUDE_INSTRUCTIONS_TARGET"
+    status_claude_path "claude/agents" "$CLAUDE_AGENTS_SOURCE" "$CLAUDE_AGENTS_TARGET"
+    local skill
+    for skill in "$COPILOT_SKILLS_SOURCE"/*; do
+        [[ -f "$skill/SKILL.md" ]] || continue
+        status_claude_path "claude/skills/$(basename "$skill")" "$skill" "$CLAUDE_SKILLS_TARGET/$(basename "$skill")"
+    done
+}
+
 do_link() {
     write_header "Creating symlinks for dotfiles"
     ensure_xdg_config_home
@@ -643,6 +735,7 @@ do_link() {
     done
 
     do_link_codex_skills "$backup_path"
+    do_link_claude "$backup_path"
     do_link_vscode_extensions
 
     write_header "Linking complete!"
@@ -718,6 +811,7 @@ do_unlink() {
     done
 
     do_unlink_codex_skills "$latest_backup"
+    do_unlink_claude "$latest_backup"
     do_unlink_vscode_extensions
 
     write_header "Unlink complete!"
@@ -779,6 +873,7 @@ do_status() {
 
     do_status_vscode_extensions
     do_status_codex_skills
+    do_status_claude
 
     echo ""
 }
@@ -951,7 +1046,7 @@ do_update_skills() {
         return 1
     fi
 
-    write_success "Project skills updated without installing Claude skills"
+    write_success "Shared project skills updated"
 }
 
 do_setup() {
@@ -978,7 +1073,7 @@ show_help() {
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
     install   Install required tools (wezterm, nvim) via package manager
-    update-skills  Update project skills without installing Claude skills
+    update-skills  Update shared project skills
     help      Show this help message
 
   EXAMPLES:

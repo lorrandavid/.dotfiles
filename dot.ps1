@@ -19,7 +19,7 @@
     .\dot.ps1 status     # Show current link status
     .\dot.ps1 doctor     # Run diagnostics
     .\dot.ps1 edit       # Open dotfiles in editor
-    .\dot.ps1 update-skills  # Update project skills without installing Claude skills
+    .\dot.ps1 update-skills  # Update shared project skills
 #>
 
 param(
@@ -43,6 +43,11 @@ $script:CodexAgentsSource = Join-Path $script:AgentsSource "AGENTS.md"
 $script:CodexAgentsTarget = Join-Path $env:USERPROFILE ".codex\AGENTS.md"
 $script:CopilotInstructionsSource = $script:CodexAgentsSource
 $script:CopilotSkillsSource = Join-Path $script:AgentsSource "skills"
+$script:ClaudeHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".claude" }
+$script:ClaudeInstructionsTarget = Join-Path $script:ClaudeHome "CLAUDE.md"
+$script:ClaudeSkillsTarget = Join-Path $script:ClaudeHome "skills"
+$script:ClaudeAgentsSource = Join-Path $script:ConfigSource "shared\agents"
+$script:ClaudeAgentsTarget = Join-Path $script:ClaudeHome "agents"
 
 function Set-CopilotTargets {
     # Copilot uses XDG_CONFIG_HOME when set, otherwise the user home.
@@ -356,7 +361,7 @@ function Invoke-LinkAgents {
         return
     }
 
-    Write-Header "Linking Codex skills"
+    Write-Header "Linking shared agent configuration"
 
     if (Test-Path -LiteralPath $script:AgentsTarget) {
         if (Test-IsSymlink $script:AgentsTarget) {
@@ -643,6 +648,107 @@ function Invoke-StatusAgents {
     }
 }
 
+function Invoke-LinkClaudePath {
+    param([string]$Source, [string]$Target, [string]$BackupPath, [string]$BackupName, [switch]$Directory)
+
+    if (Test-Path -LiteralPath $Target) {
+        if (Test-IsSymlink $Target) {
+            if ((Get-Item -LiteralPath $Target -Force).Target -eq $Source) {
+                Write-Success "Claude $BackupName already linked correctly"
+                return
+            }
+            Remove-Item -LiteralPath $Target -Force -ErrorAction Stop
+        } else {
+            if (-not (Test-Path -LiteralPath $BackupPath)) {
+                New-Item -ItemType Directory -Path $BackupPath -Force -ErrorAction Stop | Out-Null
+            }
+            $backupTarget = Join-Path $BackupPath $BackupName
+            Write-Warning "Backing up existing Claude $BackupName to $backupTarget"
+            Move-Item -LiteralPath $Target -Destination $backupTarget -ErrorAction Stop
+        }
+    }
+
+    $parent = Split-Path -Parent $Target
+    if (-not (Test-Path -LiteralPath $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force -ErrorAction Stop | Out-Null
+    }
+    $linkType = if ($Directory) { "Junction" } else { "SymbolicLink" }
+    New-Item -ItemType $linkType -Path $Target -Target $Source -ErrorAction Stop | Out-Null
+    Write-Success "Claude $BackupName linked: $Target -> $Source"
+}
+
+function Invoke-LinkClaude {
+    param([string]$BackupPath)
+
+    Write-Header "Linking Claude Code instructions, skills, and agents"
+    Invoke-LinkClaudePath -Source $script:CodexAgentsSource -Target $script:ClaudeInstructionsTarget -BackupPath $BackupPath -BackupName "claude-CLAUDE.md"
+
+    if (Test-Path -LiteralPath $script:ClaudeAgentsSource -PathType Container) {
+        Invoke-LinkClaudePath -Source $script:ClaudeAgentsSource -Target $script:ClaudeAgentsTarget -BackupPath $BackupPath -BackupName "claude-agents" -Directory
+    }
+
+    if (-not (Test-Path -LiteralPath $script:ClaudeSkillsTarget)) {
+        New-Item -ItemType Directory -Path $script:ClaudeSkillsTarget -Force -ErrorAction Stop | Out-Null
+    }
+    foreach ($skill in Get-ChildItem -LiteralPath $script:CopilotSkillsSource -Directory -Force) {
+        if (-not (Test-Path -LiteralPath (Join-Path $skill.FullName "SKILL.md") -PathType Leaf)) { continue }
+        $target = Join-Path $script:ClaudeSkillsTarget $skill.Name
+        Invoke-LinkClaudePath -Source $skill.FullName -Target $target -BackupPath $BackupPath -BackupName "claude-skill-$($skill.Name)" -Directory
+    }
+}
+
+function Invoke-UnlinkClaudePath {
+    param([string]$Source, [string]$Target, [string]$BackupName, $LatestBackup)
+
+    if (-not (Test-Path -LiteralPath $Target) -or -not (Test-IsSymlink $Target)) { return }
+    if ((Get-Item -LiteralPath $Target -Force).Target -ne $Source) {
+        Write-Warning "Claude $BackupName points elsewhere, skipping"
+        return
+    }
+    Remove-Item -LiteralPath $Target -Force
+    Write-Success "Removed Claude link: $BackupName"
+    if ($LatestBackup) {
+        $backupSource = Join-Path $LatestBackup.FullName $BackupName
+        if (Test-Path -LiteralPath $backupSource) {
+            Move-Item -LiteralPath $backupSource -Destination $Target
+            Write-Info "Restored backup for Claude $BackupName"
+        }
+    }
+}
+
+function Invoke-UnlinkClaude {
+    param($LatestBackup)
+
+    Invoke-UnlinkClaudePath -Source $script:CodexAgentsSource -Target $script:ClaudeInstructionsTarget -BackupName "claude-CLAUDE.md" -LatestBackup $LatestBackup
+    Invoke-UnlinkClaudePath -Source $script:ClaudeAgentsSource -Target $script:ClaudeAgentsTarget -BackupName "claude-agents" -LatestBackup $LatestBackup
+    foreach ($skill in Get-ChildItem -LiteralPath $script:CopilotSkillsSource -Directory -Force) {
+        $target = Join-Path $script:ClaudeSkillsTarget $skill.Name
+        Invoke-UnlinkClaudePath -Source $skill.FullName -Target $target -BackupName "claude-skill-$($skill.Name)" -LatestBackup $LatestBackup
+    }
+}
+
+function Invoke-StatusClaude {
+    $entries = @(
+        @{ Name = "claude/CLAUDE.md"; Source = $script:CodexAgentsSource; Target = $script:ClaudeInstructionsTarget },
+        @{ Name = "claude/agents"; Source = $script:ClaudeAgentsSource; Target = $script:ClaudeAgentsTarget }
+    )
+    foreach ($skill in Get-ChildItem -LiteralPath $script:CopilotSkillsSource -Directory -Force) {
+        if (Test-Path -LiteralPath (Join-Path $skill.FullName "SKILL.md") -PathType Leaf) {
+            $entries += @{ Name = "claude/skills/$($skill.Name)"; Source = $skill.FullName; Target = (Join-Path $script:ClaudeSkillsTarget $skill.Name) }
+        }
+    }
+    foreach ($entry in $entries) {
+        $status = if (-not (Test-Path -LiteralPath $entry.Target)) {
+            "Not linked"
+        } elseif (Test-IsSymlink $entry.Target) {
+            if ((Get-Item -LiteralPath $entry.Target -Force).Target -eq $entry.Source) { "Linked" } else { "Wrong target" }
+        } else {
+            "Exists (not symlink)"
+        }
+        [PSCustomObject]@{ Config = $entry.Name; Status = $status }
+    }
+}
+
 function Test-IsAdmin {
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($identity)
@@ -750,6 +856,7 @@ function Invoke-Link {
     }
 
     Invoke-LinkAgents -BackupPath $backupPath
+    Invoke-LinkClaude -BackupPath $backupPath
     Invoke-LinkVscodeExtensions
     Invoke-LinkZedThemes
 
@@ -815,6 +922,7 @@ function Invoke-Unlink {
     }
 
     Invoke-UnlinkAgents -LatestBackup $latestBackup
+    Invoke-UnlinkClaude -LatestBackup $latestBackup
     Invoke-UnlinkVscodeExtensions
     Invoke-UnlinkZedThemes
 
@@ -874,6 +982,7 @@ function Invoke-Status {
     $table += Invoke-StatusVscodeExtensions
     $table += Invoke-StatusZedThemes
     $table += Invoke-StatusAgents
+    $table += Invoke-StatusClaude
 
     $table | Format-Table -AutoSize
 }
@@ -1014,7 +1123,7 @@ function Invoke-UpdateSkills {
         exit $LASTEXITCODE
     }
 
-    Write-Success "Project skills updated without installing Claude skills"
+    Write-Success "Shared project skills updated"
 }
 
 function Invoke-Setup {
@@ -1043,7 +1152,7 @@ function Show-Help {
     edit      Open dotfiles directory in editor
     setup     Install required tools and create symlinks
     install   Install required tools (wezterm, nvim, psmux) via winget
-    update-skills  Update project skills without installing Claude skills
+    update-skills  Update shared project skills
     help      Show this help message
 
   EXAMPLES:

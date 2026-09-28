@@ -18,7 +18,11 @@ Configs currently managed (folders under `./.config/`):
 - `wezterm`
 - `zed`
 
-The `.config/shared` directory is deprecated and retained only for compatibility. The installers intentionally ignore it. Global agent configuration lives under `.config/.agents`; the installers link that directory to `~/.agents` and its `AGENTS.md` to `~/.codex/AGENTS.md`. For Copilot, they link `AGENTS.md` as `copilot-instructions.md` and the `skills` directory inside `$XDG_CONFIG_HOME/.copilot` (or `~/.copilot` when XDG_CONFIG_HOME is unset). The link command configures XDG_CONFIG_HOME before resolving these destinations. Both harnesses therefore load one versioned policy without instruction-file imports or machine-specific skill-directory settings. Linking also migrates a legacy whole-directory symlink at the resolved Copilot location to this file-level layout.
+Global agent configuration lives under `.config/.agents`. The installers link that directory to `~/.agents` and its `AGENTS.md` to `~/.codex/AGENTS.md`.
+
+For Copilot, the installers link `AGENTS.md` as `copilot-instructions.md` and the shared `skills` directory inside `$XDG_CONFIG_HOME/.copilot` (or `~/.copilot` when XDG_CONFIG_HOME is unset). The link command configures XDG_CONFIG_HOME before resolving these destinations. It also migrates a legacy whole-directory Copilot symlink to this file-level layout.
+
+For Claude Code, the installers link `AGENTS.md` as `~/.claude/CLAUDE.md`, each shared skill into `~/.claude/skills`, and the agent definitions in `.config/shared/agents` to `~/.claude/agents`. Set `CLAUDE_CONFIG_DIR` to use a different Claude Code configuration directory. Existing Claude skill folders are backed up before a same-name link replaces them. Other Claude skills and settings stay in place. After you add a skill to `.config/.agents/skills` with `npx skills add`, run `link` again to make it available in Claude Code.
 
 ## Prerequisites
 
