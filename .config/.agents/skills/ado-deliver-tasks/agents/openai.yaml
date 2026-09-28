@@ -1,4 +1,0 @@
-interface:
-  display_name: "Deliver ADO Work Items"
-  short_description: "Deliver ADO work items to draft PRs"
-  default_prompt: "Use $ado-deliver-tasks to deliver selected Azure DevOps Tasks, Bugs, or configured deliverables through validated draft PRs, using a plan only when I require or supply one."
