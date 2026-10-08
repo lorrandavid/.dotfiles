@@ -13,6 +13,12 @@
       "skillPath": "cursor-team-kit/skills/deslop/SKILL.md",
       "computedHash": "8883a7d459c07a0b2ee06972e79baa634009aa3bab969a6650acbefac394ad41"
     },
+    "good-css": {
+      "source": "vojtaholik/good-css",
+      "sourceType": "github",
+      "skillPath": "skills/good-css/SKILL.md",
+      "computedHash": "175f786bdbf3c3222e35a81a0de11e1aee3a9127af29b3d1011591f311e943e3"
+    },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
