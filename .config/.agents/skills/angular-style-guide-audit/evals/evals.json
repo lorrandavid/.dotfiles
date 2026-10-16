@@ -26,7 +26,9 @@
         "Reporta o seletor [tooltip] da diretiva sem prefixo do projeto",
         "Não trata o sufixo .component.ts como violação",
         "Não reporta como violação do guia temas fora dele (OnPush, *ngIf/control flow, strict, any, standalone)",
-        "Agrupa os achados por seção do guia e cita arquivo:linha"
+        "Agrupa os achados por seção do guia e cita arquivo:linha",
+        "Reporta o resultado do script CDD com os números exatos (FilmCardComponent 7/14, PaymentFormComponent 6/14) e nenhuma classe acima do limite",
+        "Reporta o subscribe em FilmCardComponent.ngOnInit (linha 32) pela regra do projeto, por guardar estado em campo"
       ]
     },
     {
@@ -47,7 +49,8 @@
         "Não reporta @Input sem readonly em PromoBanner como violação",
         "Não recomenda adicionar sufixo .component aos arquivos",
         "Não reporta como violação do guia temas fora dele (OnPush, strict, signals vs RxJS)",
-        "Relatório em português"
+        "Relatório em português",
+        "Reporta o resultado do script CDD sem nenhuma classe acima do limite de 14"
       ]
     },
     {
@@ -65,7 +68,28 @@
         "Reporta o ternário aninhado no template",
         "Reporta input()/output() sem readonly",
         "Não inclui achados de arquivos fora de checkout/ (film-card, tooltip, movieService, utils.ts)",
-        "Não reporta como violação do guia temas fora dele (OnPush, control flow, strict, standalone)"
+        "Não reporta como violação do guia temas fora dele (OnPush, control flow, strict, standalone)",
+        "Roda o script CDD só no escopo do checkout e reporta PaymentFormComponent com 6/14"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "audita o projeto angular em /tmp/angular-style-guide-audit-workspace/fixtures/box-office. quero saber o que tá fora do padrão e quão complexas estão as classes",
+      "expected_output": "Relatório com achados do style guide e uma seção separada de regras do projeto: SalesDashboard com 30/14 pontos CDD e detalhamento; subscribes aninhados (alta), streams longos sem finalização (queryParamMap, valueChanges, interval), refund com takeUntilDestroyed aceito; subscribe do SalesApi fora da regra; proposta smart/dumb com componentes nomeados, inputs e outputs, incluindo os três blocos repetidos de detalhe por canal.",
+      "files": [
+        "fixtures/box-office"
+      ],
+      "assertions": [
+        "Roda o script CDD e reporta SalesDashboard com 30 pontos, acima do limite de 14",
+        "Detalha os itens CDD que mais pesam em SalesDashboard e sugere reduções ligadas a eles",
+        "Classifica os subscribes aninhados (linhas 39 e 45) como severidade alta e sugere operador de achatamento (switchMap, mergeMap etc.)",
+        "Reporta os subscribes de queryParamMap, valueChanges e interval sem finalização",
+        "Considera aceitável o subscribe de refund com takeUntilDestroyed (linha 62)",
+        "Não reporta o subscribe dentro do serviço SalesApi pela regra de componentes",
+        "Propõe divisão smart/dumb com nomes de componentes novos, inputs e outputs",
+        "Aponta os três blocos repetidos de detalhe por canal no template como oportunidade de extrair um componente",
+        "Separa as regras do projeto dos achados do style guide e não as cita como regras do guia",
+        "Relatório em português"
       ]
     }
   ]

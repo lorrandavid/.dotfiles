@@ -1,0 +1,24 @@
+{
+  "limitPointsPerClass": 14,
+  "ignore": [
+    "**/*.spec.ts",
+    "**/*.d.ts",
+    "**/*.config.ts",
+    "src/main.ts",
+    "src/environments/**"
+  ],
+  "componentLimits": {
+    "classLines": 200,
+    "templateLines": 150
+  },
+  "items": [
+    { "id": "if", "description": "Each if or else-if block (a plain else does not count)", "points": 1 },
+    { "id": "switch-case", "description": "Each case inside a switch (default does not count)", "points": 1 },
+    { "id": "ternary", "description": "Each ternary operator", "points": 1 },
+    { "id": "logical-operator", "description": "Each && or || operator", "points": 1 },
+    { "id": "loop", "description": "Each loop: for, for-in, for-of, while, do-while, or an iteration method (forEach, map, filter, reduce, some, every, find...) called on an array, Map or Set", "points": 1 },
+    { "id": "try-catch", "description": "Each try/catch block, regardless of the number of catches", "points": 1 },
+    { "id": "lambda-with-body", "description": "Each arrow function with a block body { } or function expression passed as an argument (single-expression arrows do not count)", "points": 1 },
+    { "id": "project-coupling", "description": "Each project type (class, interface, type alias or enum declared outside node_modules) the class references: injected dependency, parameter, return, instantiation, static use or decorator metadata. Counts 1 per distinct type, not per use.", "points": 1 }
+  ]
+}
