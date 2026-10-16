@@ -1,0 +1,72 @@
+{
+  "skill_name": "angular-style-guide-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "audita o projeto angular em /tmp/angular-style-guide-audit-workspace/fixtures/movie-reel contra o style guide oficial (angular.dev/style-guide). quero um relatório do que tá fora do padrão",
+      "expected_output": "Relatório em português, agrupado por seção do guia, com pastas por tipo, nome camelCase movieService.ts, utils.ts genérico, tests/ separado, nome PaymentFormComponent x checkout.component.ts, prefixo ng-, output click, output onPurchase, injeção por construtor, ordem de membros, Luhn no componente, template complexo, ngClass, handleClick, ngOnInit longo sem implements OnInit, membros públicos de template, readonly ausente em input()/output()/@Output, diretiva [tooltip] sem prefixo.",
+      "files": [
+        "fixtures/movie-reel"
+      ],
+      "assertions": [
+        "Reporta o prefixo de seletor ng- em film-card como violação de severidade alta",
+        "Reporta o output 'click' de FilmCardComponent como conflito com evento do DOM",
+        "Reporta o output 'onPurchase' (prefixo 'on')",
+        "Reporta as pastas por tipo (components/, services/, models/, directives/)",
+        "Reporta movieService.ts como nome de arquivo sem hífen",
+        "Reporta utils.ts como nome de arquivo genérico",
+        "Reporta a pasta tests/ separada do código testado",
+        "Reporta que PaymentFormComponent não bate com o nome do arquivo checkout.component.ts",
+        "Reporta injeção pelo construtor e recomenda inject()",
+        "Reporta ngClass e recomenda binding [class]",
+        "Reporta handleClick como nome de handler pelo evento",
+        "Reporta ngOnInit sem 'implements OnInit' em FilmCardComponent",
+        "Reporta a validação Luhn dentro do componente (foco em apresentação)",
+        "Reporta o ternário aninhado no template do checkout",
+        "Reporta o seletor [tooltip] da diretiva sem prefixo do projeto",
+        "Não trata o sufixo .component.ts como violação",
+        "Não reporta como violação do guia temas fora dele (OnPush, *ngIf/control flow, strict, any, standalone)",
+        "Agrupa os achados por seção do guia e cita arquivo:linha"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Can you check /tmp/angular-style-guide-audit-workspace/fixtures/seat-booker against the Angular style guide? It's a fresh Angular 20 app, I want to know what's not following the official recommendations before we grow it. Responde em português.",
+      "expected_output": "Relatório com poucos achados reais (output submit colide com DOM, ngOnInit sem implements OnInit, viewChild sem readonly, total público só usado no template, helpers.ts genérico) e sem falsos positivos (Seat+SeatMap no mesmo arquivo, handleKeydown que delega, @Input sem readonly, ausência de sufixo .component).",
+      "files": [
+        "fixtures/seat-booker"
+      ],
+      "assertions": [
+        "Reporta o output 'submit' de PaymentForm como conflito com evento do DOM",
+        "Reporta ngOnInit sem 'implements OnInit' em PaymentForm",
+        "Reporta o viewChild totalBox sem readonly",
+        "Reporta 'total' público usado só no template (deveria ser protected)",
+        "Reporta helpers.ts como nome de arquivo genérico",
+        "Não reporta Seat e SeatMap no mesmo arquivo como violação",
+        "Não reporta handleKeydown de NotesEditor como violação",
+        "Não reporta @Input sem readonly em PromoBanner como violação",
+        "Não recomenda adicionar sufixo .component aos arquivos",
+        "Não reporta como violação do guia temas fora dele (OnPush, strict, signals vs RxJS)",
+        "Relatório em português"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "dá uma olhada só no checkout em /tmp/angular-style-guide-audit-workspace/fixtures/movie-reel/src/app/components/checkout e me diz o que fere o style guide do angular",
+      "expected_output": "Relatório restrito à pasta checkout: nome do arquivo x PaymentFormComponent, onPurchase, ordem de membros, validação Luhn no componente, template complexo, readonly ausente, membros públicos de template. Sem achados de film-card, tooltip ou movieService.",
+      "files": [
+        "fixtures/movie-reel/src/app/components/checkout"
+      ],
+      "assertions": [
+        "Reporta que PaymentFormComponent não bate com o nome do arquivo checkout.component.ts",
+        "Reporta o output 'onPurchase' (prefixo 'on')",
+        "Reporta métodos/propriedades declarados antes de inject/output (ordem de membros)",
+        "Reporta a validação Luhn dentro do componente (foco em apresentação)",
+        "Reporta o ternário aninhado no template",
+        "Reporta input()/output() sem readonly",
+        "Não inclui achados de arquivos fora de checkout/ (film-card, tooltip, movieService, utils.ts)",
+        "Não reporta como violação do guia temas fora dele (OnPush, control flow, strict, standalone)"
+      ]
+    }
+  ]
+}
