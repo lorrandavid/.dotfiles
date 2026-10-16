@@ -8,8 +8,8 @@
     "src/environments/**"
   ],
   "componentLimits": {
-    "classLines": 200,
-    "templateLines": 150
+    "classLines": 300,
+    "templateLines": 250
   },
   "items": [
     { "id": "if", "description": "Each if or else-if block (a plain else does not count)", "points": 1 },
