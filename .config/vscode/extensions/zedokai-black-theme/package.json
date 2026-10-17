@@ -1,0 +1,22 @@
+{
+  "name": "zedokai-black-theme",
+  "displayName": "Zedokai Darker Black",
+  "description": "Zedokai Darker (Filter Spectrum) syntax colors on a flat near-black background, ported from the Zed theme.",
+  "version": "1.0.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Zedokai Darker Black (Filter Spectrum)",
+        "uiTheme": "vs-dark",
+        "path": "./themes/zedokai-black-color-theme.json"
+      }
+    ]
+  }
+}
