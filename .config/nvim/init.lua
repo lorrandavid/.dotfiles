@@ -11,3 +11,6 @@ opt.ignorecase = true
 opt.smartcase = true
 opt.termguicolors = true
 opt.clipboard = "unnamedplus"
+
+vim.pack.add({ "https://github.com/tjdevries/colorbuddy.nvim" })
+vim.cmd.colorscheme("zedokai_darker_black")
