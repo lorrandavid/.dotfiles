@@ -1,11 +1,11 @@
 ---
 name: angular-style-guide-audit
-description: Audits Angular code against the official style guide (https://angular.dev/style-guide), organized as ten principles, and three project principles (complexity budget measured by script, declarative streams instead of subscribe() in components, and splitting large components), and produces a read-only report. Covers file names, feature-based structure, one concept per file, inject(), selectors, input/output names, member order, logic outside the UI, complex templates, protected, readonly, ngClass/ngStyle, handlers, lifecycle hooks, subscribe() in components, component size, and cognitive complexity points per class. Use whenever the user asks to audit, review, check compliance, measure complexity, or "see what is off the standard" in an Angular project, folder, or file, even if they do not mention "style guide" or "audit".
+description: Audits Angular code against the official style guide (https://angular.dev/style-guide), organized as ten principles, and five project principles (complexity budget measured by script, declarative streams instead of subscribe() in components, splitting large or multi-purpose components, stateless components, and composition over inheritance), and produces a read-only report. Covers file names, feature-based structure, one concept per file, inject(), selectors, input/output names, member order, logic outside the UI, complex templates, protected, readonly, ngClass/ngStyle, handlers, lifecycle hooks, subscribe() in components, component size, internal state, inheritance, and cognitive complexity points per class. Use whenever the user asks to audit, review, check compliance, measure complexity, or "see what is off the standard" in an Angular project, folder, or file, even if they do not mention "style guide" or "audit".
 ---
 
 # Angular style guide audit
 
-This skill compares Angular code with the official style guide and with three project principles, and delivers a report. It does not change code.
+This skill compares Angular code with the official style guide and with five project principles, and delivers a report. It does not change code.
 
 The guide is sorted into principles. Each principle is a short file that holds the guide sections it covers, what to look for, what is not a violation, and the severity. The official text is in `references/style-guide.md`. It is the source of truth: cite its sections by their English titles and use its words when you explain a rule.
 
@@ -36,11 +36,13 @@ These come from the team. They are not in the guide. Never present them as if th
 | --- | --- |
 | [complexity-budget](references/principles/complexity-budget.md) | Cognitive complexity (CDD) per class, measured by `scripts/cdd-complexity.mjs` |
 | [prefer-declarative-streams](references/principles/prefer-declarative-streams.md) | Avoid `subscribe()` in components and directives |
-| [split-large-components](references/principles/split-large-components.md) | Smart/dumb split for large components |
+| [split-large-components](references/principles/split-large-components.md) | One job per component. Smart/dumb split for large or multi-purpose components |
+| [keep-components-stateless](references/principles/keep-components-stateless.md) | Minimum internal state. Derive, lift, or pass it down instead |
+| [prefer-composition-over-inheritance](references/principles/prefer-composition-over-inheritance.md) | Compose with `inject()`, host directives, and child components instead of `extends` |
 
 ## Scope
 
-Audit the rules in the principles above, the selector, input, and output names the guide cites, and the three project principles. Do not report OnPush, control flow (`@if`/`*ngIf`), signals vs. RxJS outside the context of `subscribe()`, `strict`, `any`, standalone, lazy loading, `core/`/`shared/` folders, or file suffixes as rules. These topics can be good advice, but they are not part of the scope, and mixing them in reduces trust in the report. If you notice a serious problem outside the scope, cite it in one line under "Out of scope", without a severity.
+Audit the rules in the principles above, the selector, input, and output names the guide cites, and the five project principles. Do not report OnPush, control flow (`@if`/`*ngIf`), signals vs. RxJS outside the context of `subscribe()` and component state, `strict`, `any`, standalone, lazy loading, `core/`/`shared/` folders, or file suffixes as rules. These topics can be good advice, but they are not part of the scope, and mixing them in reduces trust in the report. If you notice a serious problem outside the scope, cite it in one line under "Out of scope", without a severity.
 
 The guide is a set of recommendations, not requirements. Write findings as recommendations ("the guide recommends…"), not as errors.
 
@@ -61,7 +63,7 @@ The guide is a set of recommendations, not requirements. Write findings as recom
    5. Check that the dependencies are installed (`node_modules/typescript` exists at the root). The script in the complexity-budget principle needs them.
 2. **Read `consistency-over-convention`.** Apply it as a filter to everything that follows.
 3. **Check the guide principles.** Read each principle file and check its rules against the scope.
-4. **Run the project principles.** Run the script once. Use its output for `complexity-budget`, `prefer-declarative-streams`, and `split-large-components`.
+4. **Run the project principles.** Run the script once. Use its output for `complexity-budget`, `prefer-declarative-streams`, and `split-large-components`. Check `keep-components-stateless` and `prefer-composition-over-inheritance` by reading the code (`rg "extends "` finds the inheritance candidates).
 5. **Assign severity** with the scale below.
 6. **Write the report.**
 
@@ -70,7 +72,7 @@ The guide is a set of recommendations, not requirements. Write findings as recom
 The guide does not define severity. Use this scale and explain it in the report. Each principle file lists the severity of its own findings.
 
 - **High:** can cause a real bug or conflict. `ng` prefix, input or output named like a DOM property, a property initialized by Angular that the code overwrites (without `readonly`), nested `subscribe`, a long-lived subscription without finalization.
-- **Medium:** harms the structure or the public API. Folders by type, several concepts in one file, logic outside the UI in a component, public template members, selector without a prefix, file whose name does not match the class, class above the CDD limit, large component without a smart/dumb split, `subscribe` that stores or derives state.
+- **Medium:** harms the structure or the public API. Folders by type, several concepts in one file, logic outside the UI in a component, public template members, selector without a prefix, file whose name does not match the class, class above the CDD limit, large or multi-purpose component without a smart/dumb split, unneeded internal state, `extends` of a custom base class, `subscribe` that stores or derives state.
 - **Low:** readability and consistency. `inject()`, member order, `ngClass`/`ngStyle`, handler names, lifecycle hooks, missing `implements`, missing `readonly` without reassignment.
 
 ## Report
@@ -119,6 +121,18 @@ Script: `cdd-complexity.mjs`, TypeScript <version>, <n> files, limit <n> points 
 ### Split large components
 
 <For each component: class and template size, and the split proposal with names, template blocks, inputs, outputs, and what stays in the container.>
+
+### Keep components stateless
+
+Judgment.
+
+<Table with file:line, the field or signal, why it is not needed, and the fix (derive, lift, or pass down). List accepted state, such as loading flags, under "Compliant".>
+
+### Prefer composition over inheritance
+
+<Table with file:line, the base class, what the subclass shares, and the composition fix. List accepted framework `extends` under "Compliant".>
+
+If a project principle has no findings, omit its section and list it under "Compliant".
 
 ## Compliant
 

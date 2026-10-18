@@ -20,7 +20,7 @@ All three sections are **judgment** rules. They have no exact threshold. Show th
 
 ## Related project principles
 
-Size and cognitive load of a component are measured, not judged. See [complexity-budget](complexity-budget.md) and [split-large-components](split-large-components.md).
+Size and cognitive load of a component are measured, not judged. See [complexity-budget](complexity-budget.md) and [split-large-components](split-large-components.md). For internal state, see [keep-components-stateless](keep-components-stateless.md).
 
 ## Severity
 
