@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "Audit the Angular project at /tmp/angular-style-guide-audit-workspace/fixtures/movie-reel against the official style guide (angular.dev/style-guide). I want a report of what is off the standard.",
-      "expected_output": "Report in English, grouped by guide section, with folders by type, camelCase name movieService.ts, generic utils.ts, separate tests/ folder, name PaymentFormComponent x checkout.component.ts, ng- prefix, output click, output onPurchase, constructor injection, member order, Luhn in the component, complex template, ngClass, handleClick, long ngOnInit without implements OnInit, public template members, missing readonly on input()/output()/@Output, directive [tooltip] without prefix.",
+      "expected_output": "Report in English, grouped by principle, with folders by type, camelCase name movieService.ts, generic utils.ts, separate tests/ folder, name PaymentFormComponent x checkout.component.ts, ng- prefix, output click, output onPurchase, constructor injection, member order, Luhn in the component, complex template, ngClass, handleClick, long ngOnInit without implements OnInit, public template members, missing readonly on input()/output()/@Output, directive [tooltip] without prefix.",
       "files": [
         "fixtures/movie-reel"
       ],
@@ -26,7 +26,7 @@
         "Reports the [tooltip] directive selector without the project prefix",
         "Does not treat the .component.ts suffix as a violation",
         "Does not report as guide violations the topics outside it (OnPush, *ngIf/control flow, strict, any, standalone)",
-        "Groups the findings by guide section and cites file:line",
+        "Groups the findings by principle, names the guide section of each finding, and cites file:line",
         "Reports the CDD script result with the exact numbers (FilmCardComponent 7/14, PaymentFormComponent 6/14) and no class above the limit",
         "Reports the subscribe in FilmCardComponent.ngOnInit (line 32) under the project rule, because it stores state in a field"
       ]
