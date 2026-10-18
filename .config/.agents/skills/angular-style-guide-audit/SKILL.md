@@ -1,212 +1,212 @@
 ---
 name: angular-style-guide-audit
-description: Audita código Angular contra o style guide oficial (https://angular.dev/style-guide) e três regras do projeto (subscribe em componentes, componentes grandes com divisão smart/dumb e complexidade CDD medida por script), e gera um relatório somente leitura. Cobre nomes de arquivos, estrutura por feature, um conceito por arquivo, inject(), seletores, nomes de inputs/outputs, ordem de membros, lógica fora da UI, templates complexos, protected, readonly, ngClass/ngStyle, handlers, lifecycle hooks, subscribe() em componentes, tamanho de componentes e pontos de complexidade cognitiva por classe. Use sempre que o usuário pedir para auditar, revisar, checar conformidade, medir complexidade ou "ver o que está fora do padrão" num projeto, pasta ou arquivo Angular, mesmo que não cite "style guide" ou "auditoria".
+description: Audits Angular code against the official style guide (https://angular.dev/style-guide) and three project rules (subscribe in components, large components that need a smart/dumb split, and CDD complexity measured by script), and produces a read-only report. Covers file names, feature-based structure, one concept per file, inject(), selectors, input/output names, member order, logic outside the UI, complex templates, protected, readonly, ngClass/ngStyle, handlers, lifecycle hooks, subscribe() in components, component size, and cognitive complexity points per class. Use whenever the user asks to audit, review, check compliance, measure complexity, or "see what is off the standard" in an Angular project, folder, or file, even if they do not mention "style guide" or "audit".
 ---
 
-# Auditoria Angular contra o style guide
+# Angular style guide audit
 
-Esta skill compara código Angular com o style guide oficial e com três regras do projeto, e entrega um relatório. Ela não altera código.
+This skill compares Angular code with the official style guide and with three project rules, and delivers a report. It does not change code.
 
-O texto oficial está em `references/style-guide.md`. Leia esse arquivo antes de começar. Ele é a fonte da verdade: cite as seções dele pelo título em inglês e use as palavras dele quando explicar uma regra.
+The official text is in `references/style-guide.md`. Read this file before you start. It is the source of truth: cite its sections by their English titles and use its words when you explain a rule.
 
-## Escopo: o guia e as regras do projeto
+## Scope: the guide and the project rules
 
-Audite as regras do style guide, os trechos de nomes que ele cita (seletores, inputs e outputs) e as três regras do projeto do Passo 3. Não reporte OnPush, control flow (`@if`/`*ngIf`), signals vs. RxJS fora do contexto de `subscribe()`, `strict`, `any`, standalone, lazy loading, pastas `core/`/`shared/` ou sufixos de arquivo como regra. Esses temas podem ser bons conselhos, mas não fazem parte do escopo, e misturá-los tira a confiança do relatório. Se você notar um problema sério fora do escopo, cite-o numa linha em "Fora do escopo", sem severidade.
+Audit the rules in the style guide, the selector, input, and output names it cites, and the three project rules in Step 3. Do not report OnPush, control flow (`@if`/`*ngIf`), signals vs. RxJS outside the context of `subscribe()`, `strict`, `any`, standalone, lazy loading, `core/`/`shared/` folders, or file suffixes as rules. These topics can be good advice, but they are not part of the scope, and mixing them in reduces trust in the report. If you notice a serious problem outside the scope, cite it in one line under "Out of scope", without a severity.
 
-Mantenha a separação no relatório: achados do guia citam a seção do guia; achados das regras do projeto citam a regra do projeto. Nunca apresente uma regra do projeto como se fosse do guia.
+Keep the report sections separate: findings from the guide cite the guide section; findings from the project rules cite the project rule. Never present a project rule as if it came from the guide.
 
-O guia é um conjunto de recomendações, não de requisitos. Escreva os achados como recomendações ("o guia recomenda…"), não como erros.
+The guide is a set of recommendations, not requirements. Write findings as recommendations ("the guide recommends…"), not as errors.
 
-## Regras de interpretação
+## Interpretation rules
 
-Estas regras evitam os falsos positivos mais comuns.
+These rules prevent the most common false positives.
 
-- **Consistência dentro do arquivo vence o guia.** A seção "When in doubt, prefer consistency" diz que um arquivo não deve misturar convenções. Não recomende mudar um único membro de um arquivo para o estilo do guia se o resto do arquivo segue outro estilo. Recomende o arquivo inteiro ou nada.
-- **Sufixos de tipo não são violação.** O guia pede que o nome do arquivo reflita o identificador dentro dele. `UserProfileComponent` em `user-profile.component.ts` respeita a regra, assim como `UserProfile` em `user-profile.ts`. Reporte só quando o nome não bate com a classe (por exemplo, `PaymentFormComponent` em `checkout.component.ts`). Se o projeto mistura as duas convenções, reporte uma vez como inconsistência.
-- **Vários componentes num arquivo podem estar certos.** "One concept per file" aceita classes pequenas que formam um só conceito. Reporte só quando as classes não são relacionadas ou o arquivo é grande. Na dúvida, o guia manda preferir arquivos menores: reporte como baixa e explique.
-- **`handleKeydown` pode estar certo.** O guia aceita um nome genérico quando o handler é longo e delega para métodos com nomes específicos.
-- **`@Input()` sem `readonly` está certo.** A regra de `readonly` vale para `input()`, `model()`, `output()`, queries por sinal e, na API de decorators, só para `@Output` e queries.
-- **Regras de julgamento ficam marcadas.** "Avoid overly complex logic in templates", "Keep components and directives focused on presentation" e "Keep lifecycle methods simple" não têm critério exato. Mostre o trecho, explique por que ele parece complexo e marque o achado como "julgamento".
-- **Confirme cada achado lendo o código.** Uma busca por texto encontra comentários, strings e código gerado. Abra o arquivo e confirme antes de reportar.
-- **Ignore código que não é do projeto:** `node_modules/`, `dist/`, `.angular/`, `coverage/` e arquivos gerados.
+- **File consistency beats the guide.** The section "When in doubt, prefer consistency" says that a file must not mix conventions. Do not recommend changing a single member of a file to the guide's style if the rest of the file follows another style. Recommend the whole file, or nothing.
+- **Type suffixes are not violations.** The guide asks that the file name reflect the identifier inside it. `UserProfileComponent` in `user-profile.component.ts` complies, as does `UserProfile` in `user-profile.ts`. Report only when the name does not match the class (for example, `PaymentFormComponent` in `checkout.component.ts`). If the project mixes both conventions, report it once as an inconsistency.
+- **Several components in one file can be correct.** "One concept per file" accepts small classes that form a single concept. Report only when the classes are unrelated or the file is large. When in doubt, the guide prefers smaller files: report it as low and explain.
+- **`handleKeydown` can be correct.** The guide accepts a generic name when the handler is long and delegates to methods with specific names.
+- **`@Input()` without `readonly` is correct.** The `readonly` rule applies to `input()`, `model()`, `output()`, signal queries and, in the decorator API, only to `@Output` and queries.
+- **Judgment rules are marked.** "Avoid overly complex logic in templates", "Keep components and directives focused on presentation", and "Keep lifecycle methods simple" have no exact threshold. Show the code, explain why it looks complex, and mark the finding "Judgment".
+- **Confirm each finding by reading the code.** A text search finds comments, strings, and generated code. Open the file and confirm before you report.
+- **Ignore code that is not part of the project:** `node_modules/`, `dist/`, `.angular/`, `coverage/`, and generated files.
 
-## Passo 1: Contexto
+## Step 1: Context
 
-1. Encontre a raiz (`angular.json` ou `project.json` do Nx) e o escopo pedido. Se o usuário citou uma pasta ou arquivo, audite só isso, mas leia o resto quando precisar de contexto (por exemplo, para saber o prefixo de seletor do projeto).
-2. Leia a versão de `@angular/core` em `package.json`. Ela não muda as regras, mas muda a correção sugerida: `input()`/`output()` existem a partir da v17.1, `model()` a partir da v17.2 e `inject()` a partir da v14. Num projeto que não tem a API, a correção diz que precisa atualizar a versão antes.
-3. Descubra o prefixo de seletor: campo `prefix` em `angular.json` e o prefixo mais frequente nos seletores.
-4. Descubra a convenção de nome de arquivo dominante (com ou sem sufixo `.component`).
-5. Verifique se as dependências estão instaladas (`node_modules/typescript` existe na raiz). O script do Passo 3 precisa delas.
+1. Find the root (`angular.json` or the Nx `project.json`) and the requested scope. If the user named a folder or file, audit only that, but read the rest when you need context (for example, to learn the project's selector prefix).
+2. Read the `@angular/core` version in `package.json`. It does not change the rules, but it changes the suggested fix: `input()`/`output()` exist from v17.1, `model()` from v17.2, and `inject()` from v14. In a project that lacks the API, the fix says that the version must be updated first.
+3. Find the selector prefix: the `prefix` field in `angular.json` and the most frequent prefix in the selectors.
+4. Find the dominant file-name convention (with or without the `.component` suffix).
+5. Check that the dependencies are installed (`node_modules/typescript` exists at the root). The script in Step 3 needs them.
 
-## Passo 2: Verificar as regras
+## Step 2: Check the rules
 
-Para cada regra, a tabela mostra o que procurar. As buscas são pontos de partida. Use a ferramenta de busca disponível (Grep, `rg`) e confirme cada resultado lendo o arquivo.
+For each rule, the table shows what to look for. The searches are starting points. Use the available search tool (Grep, `rg`) and confirm each result by reading the file.
 
 ### Naming
 
-| Seção do guia | O que procurar |
+| Guide section | What to look for |
 |---|---|
-| Separate words in file names with hyphens | Arquivos `.ts`, `.html`, `.css`, `.scss` com camelCase, PascalCase ou `_` no nome. |
-| Use the same name for a file's tests with `.spec` at the end | Testes com `.test.ts` ou nome diferente do arquivo testado. |
-| Match file names to the TypeScript identifier within | Classe principal com nome diferente do arquivo. Arquivos genéricos: `utils.ts`, `helpers.ts`, `common.ts` (com ou sem prefixo de pasta). |
-| Use the same file name for a component's TypeScript, template, and styles | `templateUrl`/`styleUrl(s)` que apontam para nomes diferentes do `.ts`. Estilo extra sem palavra que descreve o conteúdo. |
+| Separate words in file names with hyphens | `.ts`, `.html`, `.css`, and `.scss` files with camelCase, PascalCase, or `_` in the name. |
+| Use the same name for a file's tests with `.spec` at the end | Tests with `.test.ts` or with a name different from the tested file. |
+| Match file names to the TypeScript identifier within | Main class with a name different from the file. Generic files: `utils.ts`, `helpers.ts`, `common.ts` (with or without a folder prefix). |
+| Use the same file name for a component's TypeScript, template, and styles | `templateUrl`/`styleUrl(s)` that point to names different from the `.ts` file. Extra style file without a word that describes its content. |
 
 ### Project structure
 
-| Seção do guia | O que procurar |
+| Guide section | What to look for |
 |---|---|
-| All the application's code goes in a directory named `src` | Código de UI fora de `src/`. |
-| Bootstrap your application in a file named `main.ts` directly inside `src` | `bootstrapApplication`/`bootstrapModule` fora de `src/main.ts`. |
-| Group closely related files together in the same directory | Template ou estilo em pasta diferente do `.ts`. Pasta `tests/` ou `__tests__/` com testes de código de outras pastas. |
-| Organize your project by feature areas | Pastas por tipo: `components/`, `directives/`, `services/`, `pipes/`, `models/`, `guards/`, `interceptors/`. Pastas com tantos arquivos que ficam difíceis de navegar (conte os arquivos e cite o número). |
-| One concept per file | Arquivos com mais de um `@Component`/`@Directive`/`@Injectable`/`@Pipe`. Decida pelas regras de interpretação acima. |
+| All the application's code goes in a directory named `src` | UI code outside `src/`. |
+| Bootstrap your application in a file named `main.ts` directly inside `src` | `bootstrapApplication`/`bootstrapModule` outside `src/main.ts`. |
+| Group closely related files together in the same directory | Template or style in a different folder from the `.ts` file. A `tests/` or `__tests__/` folder with tests for code in other folders. |
+| Organize your project by feature areas | Folders by type: `components/`, `directives/`, `services/`, `pipes/`, `models/`, `guards/`, `interceptors/`. Folders with so many files that they are hard to navigate (count the files and cite the number). |
+| One concept per file | Files with more than one `@Component`/`@Directive`/`@Injectable`/`@Pipe`. Decide by the interpretation rules above. |
 
 ### Dependency injection
 
-| Seção do guia | O que procurar |
+| Guide section | What to look for |
 |---|---|
-| Prefer the `inject` function over constructor parameter injection | `constructor(` com parâmetros `private`/`public`/`protected`/`readonly` ou com `@Inject(...)` em classes Angular. Cite a migração automática: `ng generate @angular/core:inject`. |
+| Prefer the `inject` function over constructor parameter injection | `constructor(` with `private`/`public`/`protected`/`readonly` parameters, or with `@Inject(...)`, in Angular classes. Cite the automatic migration: `ng generate @angular/core:inject`. |
 
 ### Components and directives
 
-| Seção do guia | O que procurar |
+| Guide section | What to look for |
 |---|---|
-| Choosing component selectors | Seletor de elemento sem hífen. Prefixo diferente do prefixo do projeto. Prefixo `ng` (severidade alta: o guia diz "Never"). |
-| Choosing directive selectors | Diretiva sem o prefixo do projeto. Seletor de atributo fora de camelCase (`[mr-tooltip]` em vez de `[mrTooltip]`). |
-| Naming component and directive members | Inputs ou outputs com nome de propriedade ou evento do DOM (`click`, `change`, `focus`, `blur`, `submit`, `input`, `title`, `hidden`, `id`, `style`, `value` em elementos que já têm). Inputs/outputs com prefixo (`appValue`). Outputs com prefixo `on` (`onSave`) ou fora de camelCase. Conflito de nome com evento do DOM é severidade alta, porque o evento nativo também dispara o handler. |
-| Group Angular-specific properties before methods | Injeções, inputs, outputs ou queries declarados depois de métodos ou espalhados entre eles. |
-| Keep components and directives focused on presentation | Validação de formulário, transformação de dados ou regra de negócio dentro do componente que não depende da UI. Sugira o destino: função pura, validator ou serviço. Julgamento. |
-| Avoid overly complex logic in templates | Expressões com vários operadores, ternários aninhados, cadeias de chamadas ou cálculos no template. Sugira um `computed()` (ou getter, se o projeto não usa signals). Julgamento. |
-| Use `protected` on class members that are only used by a component's template | Membros sem modificador ou `public` usados no template e não usados de fora (busque o nome em outros arquivos antes de reportar). Não se aplica a inputs, outputs e models, que são API pública. |
-| Use `readonly` for properties that shouldn't change | `input()`, `input.required()`, `model()`, `output()`, `viewChild()`, `viewChildren()`, `contentChild()`, `contentChildren()`, `@Output()`, `@ViewChild(ren)`, `@ContentChild(ren)` sem `readonly`. |
-| Prefer `class` and `style` over `ngClass` and `ngStyle` | `[ngClass]`, `[ngStyle]`, `NgClass` e `NgStyle` em `imports`. |
-| Name event handlers for what they _do_, not for the triggering event | Handlers como `handleClick`, `onClick`, `onSubmit`, `onChange`, `clicked`. Aceite nomes genéricos quando o handler delega por tipo de evento. |
-| Keep lifecycle methods simple | `ngOnInit`, `ngOnChanges`, `ngAfterViewInit` e outros hooks com lógica longa em vez de chamadas a métodos com nomes claros. Julgamento. |
-| Use lifecycle hook interfaces | Classe com `ngOnInit`, `ngOnDestroy`, `ngOnChanges` etc. sem o `implements` correspondente. |
+| Choosing component selectors | Element selector without a hyphen. Prefix different from the project prefix. The `ng` prefix (high severity: the guide says "Never"). |
+| Choosing directive selectors | Directive without the project prefix. Attribute selector not in camelCase (`[mr-tooltip]` instead of `[mrTooltip]`). |
+| Naming component and directive members | Inputs or outputs named like a DOM property or event (`click`, `change`, `focus`, `blur`, `submit`, `input`, `title`, `hidden`, `id`, `style`, `value` on elements that already have them). Inputs/outputs with a prefix (`appValue`). Outputs with an `on` prefix (`onSave`) or not in camelCase. A name clash with a DOM event is high severity, because the native event also fires the handler. |
+| Group Angular-specific properties before methods | Injections, inputs, outputs, or queries declared after methods or mixed in among them. |
+| Keep components and directives focused on presentation | Form validation, data transformation, or business rules inside the component that do not depend on the UI. Suggest the destination: pure function, validator, or service. Judgment. |
+| Avoid overly complex logic in templates | Expressions with several operators, nested ternaries, call chains, or calculations in the template. Suggest a `computed()` (or a getter, if the project does not use signals). Judgment. |
+| Use `protected` on class members that are only used by a component's template | Members without a modifier or with `public` that are used in the template and not used from outside (search for the name in other files before you report). Does not apply to inputs, outputs, and models, which are the public API. |
+| Use `readonly` for properties that shouldn't change | `input()`, `input.required()`, `model()`, `output()`, `viewChild()`, `viewChildren()`, `contentChild()`, `contentChildren()`, `@Output()`, `@ViewChild(ren)`, `@ContentChild(ren)` without `readonly`. |
+| Prefer `class` and `style` over `ngClass` and `ngStyle` | `[ngClass]`, `[ngStyle]`, `NgClass`, or `NgStyle` in `imports`. |
+| Name event handlers for what they _do_, not for the triggering event | Handlers such as `handleClick`, `onClick`, `onSubmit`, `onChange`, `clicked`. Accept generic names when the handler delegates by event type. |
+| Keep lifecycle methods simple | `ngOnInit`, `ngOnChanges`, `ngAfterViewInit`, and other hooks with long logic instead of calls to methods with clear names. Judgment. |
+| Use lifecycle hook interfaces | Class with `ngOnInit`, `ngOnDestroy`, `ngOnChanges`, and so on, without the matching `implements`. |
 
-## Passo 3: Verificar as regras do projeto
+## Step 3: Check the project rules
 
-Estas regras não estão no guia. Elas vêm do time e usam o script `scripts/cdd-complexity.mjs` para ter números exatos.
+These rules are not in the guide. They come from the team, and they use the script `scripts/cdd-complexity.mjs` to get exact numbers.
 
-### Rodar o script
+### Run the script
 
 ```sh
-node <skill>/scripts/cdd-complexity.mjs <raiz-do-projeto> [--config <arquivo>] [--json] [<pasta-ou-arquivo> ...]
+node <skill>/scripts/cdd-complexity.mjs <project-root> [--config <file>] [--json] [<folder-or-file> ...]
 ```
 
-- Sem caminhos, o script analisa `src/`. Num escopo menor, passe as pastas ou arquivos pedidos (relativos à raiz).
-- A configuração padrão é `scripts/cdd.config.json`: limite de 14 pontos por classe, globs ignorados, pesos de cada item e limites de tamanho de componente. Se o projeto tiver um `cdd.config.json` próprio na raiz, passe-o com `--config`.
-- O script usa o compilador TypeScript e o type checker do próprio projeto. Assim, `loop` só conta métodos como `map`/`forEach` quando o receptor é de fato um array, `Map` ou `Set`, e `project-coupling` resolve aliases do `tsconfig`. Se o TypeScript não estiver instalado, o script para com erro. Nesse caso, peça ao usuário para instalar as dependências. Não estime os pontos à mão: o objetivo da regra é um número exato.
-- Avisos de "type ... is unresolved" indicam chamadas que o script não contou porque o tipo não foi resolvido (por exemplo, `any`). Cite o total de avisos no relatório.
-- Use `--json` quando precisar dos detalhes (linhas de cada ponto). A saída em tabela já traz pontos, linhas por item, tipos acoplados, tamanho de classe e template e linhas de `subscribe()`.
+- Without paths, the script analyzes `src/`. For a smaller scope, pass the requested folders or files (relative to the root).
+- The default configuration is `scripts/cdd.config.json`: a limit of 14 points per class, ignored globs, the weight of each item, and the component size limits. If the project has its own `cdd.config.json` at the root, pass it with `--config`.
+- The script uses the TypeScript compiler and the type checker of the project itself. So `loop` counts `map`/`forEach` only when the receiver is really an array, `Map`, or `Set`, and `project-coupling` resolves `tsconfig` aliases. If TypeScript is not installed, the script stops with an error. In that case, ask the user to install the dependencies. Do not estimate the points by hand: the purpose of the rule is an exact number.
+- "type ... is unresolved" warnings indicate calls the script did not count because the type was not resolved (for example, `any`). Cite the total number of warnings in the report.
+- Use `--json` when you need details (the lines of each point). The table output already shows points, lines per item, coupled types, class and template size, and `subscribe()` lines.
 
-### Complexidade cognitiva (CDD)
+### Cognitive complexity (CDD)
 
-Cada classe acumula pontos pelos itens da configuração: `if`/`else if`, `case`, ternário, `&&`/`||`, laços e métodos de iteração, `try/catch`, lambdas com corpo em bloco passadas como argumento, e cada tipo do projeto referenciado (contado uma vez por tipo). Código fora de classes aparece como "(file scope)".
+Each class accumulates points for the items in the configuration: `if`/`else if`, `case`, ternary, `&&`/`||`, loops and iteration methods, `try/catch`, lambdas with a block body passed as an argument, and each project type the class references (counted once per type). Code outside classes appears as "(file scope)".
 
-- Reporte cada classe acima do limite, com o total e o detalhamento por item. Severidade média.
-- Para cada uma, leia o código e sugira reduções ligadas aos itens que mais pesam. Por exemplo: muitos tipos acoplados indicam responsabilidades demais (divida a classe); laços e lambdas com corpo indicam transformação de dados (extraia funções puras); `if` encadeados indicam regra de decisão (extraia ou use um mapa de casos).
-- Os pontos não incluem o template. A complexidade do template fica na seção do guia "Avoid overly complex logic in templates".
+- Report each class above the limit, with the total and the breakdown per item. Medium severity.
+- For each one, read the code and suggest reductions tied to the items that weigh the most. For example: many coupled types indicate too many responsibilities (split the class); loops and lambdas with bodies indicate data transformation (extract pure functions); chained `if` statements indicate a decision rule (extract it or use a case map).
+- The points do not include the template. Template complexity is covered by the guide section "Avoid overly complex logic in templates".
 
-### Evitar `subscribe()` em componentes e diretivas
+### Avoid `subscribe()` in components and directives
 
-O script lista as linhas de `subscribe()` em classes com `@Component` ou `@Directive`. Serviços não entram nesta regra. Leia cada chamada e classifique-a:
+The script lists the `subscribe()` lines in classes with `@Component` or `@Directive`. Services are not part of this rule. Read each call and classify it:
 
-| Situação | Severidade | Correção |
+| Situation | Severity | Fix |
 |---|---|---|
-| `subscribe` dentro de outro `subscribe` | alta | Encadeie com `switchMap`, `concatMap`, `mergeMap` ou `exhaustMap`, conforme a semântica. |
-| Stream longo (rota, `valueChanges`, `interval`, store, `fromEvent`) sem `takeUntilDestroyed()`, `async` ou outra finalização | alta | Vazamento de memória. Troque por `toSignal()` ou `async`. Se a assinatura for mesmo necessária, use `takeUntilDestroyed()`. |
-| Resultado guardado em campo para o template exibir | média | `toSignal()` ou pipe `async`. Para carregar dados a partir de um parâmetro, considere `rxResource`/`httpResource` se a versão do projeto tiver essas APIs (verifique se ainda são experimentais nessa versão). |
-| Estado derivado de outro observable dentro do `subscribe` | média | `computed()` sobre `toSignal()`, ou operadores no `pipe()`. |
-| Parâmetro de rota lido com `subscribe` | média | `toSignal(route.paramMap)` ou inputs de rota (`withComponentInputBinding`). |
+| `subscribe` inside another `subscribe` | high | Chain with `switchMap`, `concatMap`, `mergeMap`, or `exhaustMap`, depending on the semantics. |
+| Long-lived stream (route, `valueChanges`, `interval`, store, `fromEvent`) without `takeUntilDestroyed()`, `async`, or other finalization | high | Memory leak. Replace it with `toSignal()` or `async`. If the subscription is really needed, use `takeUntilDestroyed()`. |
+| Result stored in a field for the template to display | medium | `toSignal()` or the `async` pipe. To load data from a parameter, consider `rxResource`/`httpResource` if the project version has these APIs (check whether they are still experimental in that version). |
+| State derived from another observable inside `subscribe` | medium | `computed()` over `toSignal()`, or operators in `pipe()`. |
+| Route parameter read with `subscribe` | medium | `toSignal(route.paramMap)` or route inputs (`withComponentInputBinding`). |
 
-A regra é "evitar, a menos que seja estritamente necessário". Considere necessário, e liste em "Em conformidade", quando a chamada dispara um efeito colateral imperativo a partir de uma ação do usuário, sem guardar valor para o template, e o stream termina sozinho (por exemplo, `save()` com HTTP num clique), ou quando integra uma API imperativa de terceiros sem alternativa declarativa. Explique o motivo em cada caso.
+The rule is "avoid unless strictly necessary". Consider a call necessary, and list it under "Compliant", when it triggers an imperative side effect from a user action without storing a value for the template, and the stream completes on its own (for example, `save()` with HTTP on a click), or when it integrates an imperative third-party API with no declarative alternative. Explain the reason in each case.
 
-`toSignal()` e `takeUntilDestroyed()` existem a partir da v16. Numa versão anterior, sugira o pipe `async` ou `takeUntil` com `ngOnDestroy`.
+`toSignal()` and `takeUntilDestroyed()` exist from v16. In an earlier version, suggest the `async` pipe or `takeUntil` with `ngOnDestroy`.
 
-### Evitar componentes muito grandes (smart/dumb)
+### Avoid components that are too large (smart/dumb)
 
-O script marca componentes com classe ou template acima dos limites de `componentLimits` (padrão: 200 linhas de classe, 150 de template). Considere também grande um componente acima do limite de CDD.
+The script flags components whose class or template exceeds the `componentLimits` values (default: 200 class lines, 150 template lines). Also consider a component large when it exceeds the CDD limit.
 
-Para cada componente grande, procure a divisão entre:
+For each large component, look for the split between:
 
-- **Smart (container):** injeta serviços ou stores, carrega dados, trata rotas e mantém o estado. Tem template curto, que compõe componentes filhos.
-- **Dumb (apresentação):** recebe dados por inputs, avisa ações por outputs, não injeta serviços de dados e pode ser reutilizado ou testado sem mocks.
+- **Smart (container):** injects services or stores, loads data, handles routes, and holds the state. Has a short template that composes child components.
+- **Dumb (presentation):** receives data through inputs, reports actions through outputs, does not inject data services, and can be reused or tested without mocks.
 
-Sinais de oportunidade: o componente injeta serviços de dados e também tem template longo; blocos do template repetidos ou dentro de `@for`/`*ngFor` com corpo grande; seções visuais independentes (cabeçalho, filtros, lista, detalhe, formulário); métodos usados só por uma parte do template.
+Signs of an opportunity: the component injects data services and also has a long template; template blocks that repeat or sit inside `@for`/`*ngFor` with a large body; independent visual sections (header, filters, list, detail, form); methods used by only one part of the template.
 
-A sugestão deve ser concreta: nome de cada componente novo, o bloco do template (com linhas) que vai para ele, seus inputs e outputs, e o que fica no container. Severidade média. Se o componente for grande mas já for só apresentação, sem divisão natural, registre como observação e não como achado.
+The suggestion must be concrete: the name of each new component, the template block (with line numbers) that moves to it, its inputs and outputs, and what stays in the container. Medium severity. If the component is large but already presentation-only, with no natural split, record it as an observation, not as a finding.
 
-## Passo 4: Severidade
+## Step 4: Severity
 
-O guia não define severidade. Use esta escala e explique-a no relatório:
+The guide does not define severity. Use this scale and explain it in the report:
 
-- **Alta:** pode causar bug ou conflito real. Prefixo `ng`, input ou output com nome do DOM, propriedade inicializada pelo Angular que o código sobrescreve (sem `readonly`), `subscribe` aninhado, assinatura longa sem finalização.
-- **Média:** prejudica a estrutura ou a API pública. Pastas por tipo, vários conceitos num arquivo, lógica fora da UI no componente, membros de template públicos, seletor sem prefixo, arquivo com nome que não bate com a classe, classe acima do limite de CDD, componente grande sem divisão smart/dumb, `subscribe` que guarda ou deriva estado.
-- **Baixa:** legibilidade e consistência. `inject()`, ordem de membros, `ngClass`/`ngStyle`, nomes de handlers, lifecycle hooks, `implements` ausente, `readonly` ausente sem reatribuição.
+- **High:** can cause a real bug or conflict. `ng` prefix, input or output named like a DOM property, a property initialized by Angular that the code overwrites (without `readonly`), nested `subscribe`, a long-lived subscription without finalization.
+- **Medium:** harms the structure or the public API. Folders by type, several concepts in one file, logic outside the UI in a component, public template members, selector without a prefix, file whose name does not match the class, class above the CDD limit, large component without a smart/dumb split, `subscribe` that stores or derives state.
+- **Low:** readability and consistency. `inject()`, member order, `ngClass`/`ngStyle`, handler names, lifecycle hooks, missing `implements`, missing `readonly` without reassignment.
 
-## Passo 5: Relatório
+## Step 5: Report
 
-Escreva em português, a menos que o usuário peça outro idioma. Use frases curtas e voz ativa. Use este modelo:
+Write in English, unless the user asks for another language. Use short sentences and the active voice. Use this template:
 
 ```markdown
-# Auditoria do style guide Angular: <projeto ou escopo>
+# Angular style guide audit: <project or scope>
 
-## Resumo
+## Summary
 
-- Angular <versão>. Escopo: <pastas/arquivos>. Prefixo de seletor: `<prefixo>`. Convenção de nomes: <com/sem sufixo>.
-- Achados: <n> altos, <n> médios, <n> baixos.
-- <Uma ou duas frases sobre os principais padrões, por exemplo "O projeto organiza pastas por tipo e usa injeção pelo construtor em todos os serviços.">
+- Angular <version>. Scope: <folders/files>. Selector prefix: `<prefix>`. Naming convention: <with/without suffix>.
+- Findings: <n> high, <n> medium, <n> low.
+- <One or two sentences about the main patterns, for example "The project organizes folders by type and uses constructor injection in all services.">
 
-## Achados
+## Findings
 
-### <Seção do guia, em inglês, exatamente como no guia>
+### <Guide section, in English, exactly as in the guide>
 
-Severidade: <alta|média|baixa>. <"Julgamento." quando aplicável>
+Severity: <high|medium|low>. <"Judgment." when applicable>
 
-<Uma frase com o que o guia recomenda e por quê, usando o motivo do próprio guia.>
+<One sentence with what the guide recommends and why, using the guide's own reason.>
 
-| Arquivo | Problema | Correção sugerida |
+| File | Problem | Suggested fix |
 |---|---|---|
-| `caminho/arquivo.ts:linha` | <o que está no código> | <mudança concreta, com nome novo ou destino> |
+| `path/file.ts:line` | <what is in the code> | <concrete change, with new name or destination> |
 
-<Repita para cada seção com achados, da maior severidade para a menor.>
+<Repeat for each section with findings, from the highest severity to the lowest.>
 
-## Regras do projeto
+## Project rules
 
-Estas regras não fazem parte do style guide.
+These rules are not part of the style guide.
 
-### Complexidade cognitiva (CDD)
+### Cognitive complexity (CDD)
 
-Script: `cdd-complexity.mjs`, TypeScript <versão>, <n> arquivos, limite <n> pontos por classe, config `<arquivo>`. <n> avisos de tipo não resolvido.
+Script: `cdd-complexity.mjs`, TypeScript <version>, <n> files, limit <n> points per class, config `<file>`. <n> unresolved type warnings.
 
-| Classe | Pontos | Itens que mais pesam | Redução sugerida |
+| Class | Points | Items that weigh the most | Suggested reduction |
 |---|---|---|---|
-| `caminho/arquivo.ts:linha` Nome | <n>/<limite> | <item n (linhas)> | <mudança concreta> |
+| `path/file.ts:line` Name | <n>/<limit> | <item n (lines)> | <concrete change> |
 
-<Se nenhuma classe passar do limite, diga isso e cite as 3 classes com mais pontos.>
+<If no class exceeds the limit, say so and cite the 3 classes with the most points.>
 
-### `subscribe()` em componentes
+### `subscribe()` in components
 
-<Tabela com arquivo:linha, situação, severidade e correção. Liste à parte as chamadas consideradas necessárias, com o motivo.>
+<Table with file:line, situation, severity, and fix. List separately the calls considered necessary, with the reason.>
 
-### Componentes grandes (smart/dumb)
+### Large components (smart/dumb)
 
-<Para cada componente: tamanho da classe e do template, e a proposta de divisão com nomes, blocos do template, inputs, outputs e o que fica no container.>
+<For each component: class and template size, and the split proposal with names, template blocks, inputs, outputs, and what stays in the container.>
 
-## Em conformidade
+## Compliant
 
-<Seções do guia e regras do projeto verificadas sem achados, em uma lista curta. Inclua os casos aceitos pelas regras de interpretação, por exemplo "`seat-map.ts` tem dois componentes, mas formam um só conceito".>
+<Guide sections and project rules checked with no findings, in a short list. Include the cases accepted by the interpretation rules, for example "`seat-map.ts` has two components, but they form one concept.">
 
-## Fora do escopo
+## Out of scope
 
-<Opcional. Problemas sérios que não são do guia, uma linha cada.>
+<Optional. Serious problems that are not part of the guide, one line each.>
 
-## Próximos passos
+## Next steps
 
-<Ordem sugerida de correção: altas primeiro; depois mudanças de estrutura (pastas, arquivos), porque mudam caminhos de import; depois o resto. Cite migrações automáticas quando existirem.>
+<Suggested order of fixes: high severity first; then structural changes (folders, files), because they change import paths; then the rest. Cite automatic migrations when they exist.>
 ```
 
-Agrupe por seção do guia, não por arquivo. Quando a mesma violação aparece em muitos arquivos (por exemplo, 40 construtores), liste todos na tabela se forem até cerca de 15. Acima disso, liste os 15 mais relevantes e informe o total e o padrão de busca que encontra o resto.
+Group by guide section, not by file. When the same violation appears in many files (for example, 40 constructors), list all of them in the table if there are up to about 15. Above that, list the 15 most relevant, state the total, and give the search pattern that finds the rest.
 
-Termine perguntando se o usuário quer aplicar correções e quais.
+End by asking the user whether they want to apply fixes, and which ones.
