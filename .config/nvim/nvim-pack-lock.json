@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "colorbuddy.nvim": {
+      "rev": "8b968581e5c19d22a861d5f3fe5dbd83394fa681",
+      "src": "https://github.com/tjdevries/colorbuddy.nvim"
+    }
+  }
+}
