@@ -1,0 +1,22 @@
+{
+  "name": "coding-with-sphere-theme",
+  "displayName": "coding-with-sphere",
+  "description": "Dark, muted theme ported from vimichael/my-nvim-config colors/custom.vim",
+  "version": "1.0.0",
+  "publisher": "local",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "coding-with-sphere",
+        "uiTheme": "vs-dark",
+        "path": "./themes/coding-with-sphere-color-theme.json"
+      }
+    ]
+  }
+}
